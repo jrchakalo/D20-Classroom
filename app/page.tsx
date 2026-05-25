@@ -6,41 +6,61 @@ import confetti from 'canvas-confetti';
 import { Volume2, VolumeX, ShieldQuestion } from 'lucide-react';
 
 const INITIAL_QUESTIONS = [
-  // Fatos Iniciais
-  { text: "I am 25 years old.", answer: true },
-  { text: "Minha comida favorita são microchips de computador.", answer: false },
-  { text: "Eu amo jogar RPG, igual no Stranger Things.", answer: true },
-  { text: "I am currently studying to become a doctor.", answer: false },
-  { text: "Eu estudo Engenharia da Computação.", answer: true },
-  { text: "I have a pet dinosaur at home.", answer: false },
-  { text: "Eu vou me casar muito em breve!", answer: true },
-  { text: "I have a sister named Camila.", answer: true },
-  { text: "Eu sou professor de programação há 50 anos.", answer: false },
-  { text: "I live in the city of Bezerros, Pernambuco.", answer: true },
-  { text: "Eu já viajei para a lua.", answer: false },
-  { text: "I know how to build websites.", answer: true },
+  // Games & Roblox
+  { text: "No Roblox, Dress to Impress é um jogo focado em competição de moda.", answer: true },
+  { text: "O Ender Dragon aparece naturalmente no mundo normal do Minecraft.", answer: false },
+  { text: "No Fortnite, existe ten como jogar com construção.", answer: false },
+  { text: "Brawl Stars foi criado pela mesma empresa do Clash Royale.", answer: true },
+  { text: "No Minecraft, Wardens enxergam os jogadores normalmente.", answer: false },
+  { text: "No Roblox, Brookhaven é um jogo de terror.", answer: false },
+  { text: "Pikachu evolui diretamente para Charizard.", answer: false },
+  { text: "No Pokémon, Magikarp evolui para Gyarados.", answer: true },
 
-  // Projetos e Interesses Reais
-  { text: "Antes de ser professor, eu trabalhava consertando computadores.", answer: true },
-  { text: "Eu fiz um site inteiro só para o meu casamento.", answer: true },
-  { text: "Eu amo usar teclados mecânicos bem barulhentos para digitar.", answer: false },
-  { text: "Eu uso Inteligência Artificial para me ajudar a escrever códigos de programação.", answer: true },
-  { text: "My favorite color is purple.", answer: true },
+  // Cultura Geek
+  { text: "O multiverso é um conceito muito usado atualmente nos filmes da Marvel.", answer: true },
+  { text: "Batman pertence ao universo Marvel.", answer: false },
+  { text: "O sabre de luz vermelho normalmente é usado pelos vilões em Star Wars.", answer: true },
+  { text: "Miles Morales é uma versão do Homem-Aranha.", answer: true },
+  { text: "O Demogorgon aparece em Stranger Things.", answer: true },
+  { text: "Hogwarts fica localizada em Nova York.", answer: false },
 
-  // Novos Fatos Pessoais Reais
-  { text: "Eu sei assobiar super alto e muito bem.", answer: true },
-  { text: "Eu simplesmente odeio amendoim.", answer: true },
-  { text: "I have an awesome dog named Finn.", answer: true },
-  { text: "Eu já tive formigas de estimação!", answer: true },
+  // Animes
+  { text: "Gojo Satoru é o personagem mais forte de Jujutsu Kaisen.", answer: true },
+  { text: "Tanjiro usa respiração da água em Demon Slayer.", answer: true },
+  { text: "Luffy quer encontrar as Esferas do Dragão.", answer: false },
+  { text: "Frieren é um anime sobre uma elfa.", answer: true },
+  { text: "Sukuna derrotou o Naruto.", answer: false },
+  { text: "Chainsaw Man possui um protagonista que vira uma serra eletrica.", answer: true },
 
-  // Absurdas e Bizarras
-  { text: "Meu computador funciona com uma roda movida por três hamsters.", answer: false },
-  { text: "Eu consigo correr mais rápido que o sinal do Wi-Fi.", answer: false },
-  { text: "Eu escovo meus dentes com queijo derretido.", answer: false },
-  { text: "Eu já lutei contra um dragão digital usando apenas um teclado e um mouse.", answer: true },
-  { text: "Eu durmo de cabeça para baixo pendurado no teto que nem um morcego.", answer: false },
-  { text: "Eu tenho uma base secreta debaixo d'água onde escondo meus videogames favoritos.", answer: false },
-  { text: "Meu cachorro Finn, na verdade, é um alienígena de Marte disfarçado.", answer: false }
+  // Memes & Trends 2025-2026
+  { text: "Tralalero Tralala é parte dos memes brainrot.", answer: true },
+  { text: "Bombardino Crocodilo surgiu em vídeos de IA.", answer: true },
+  { text: "Os memes brainrot normalmente fazem muito sentido e possuem histórias normais.", answer: false },
+  { text: "Tung Tung Tung Sahur é real e pode te pegar.", answer: false },
+  { text: "Brainrots são memes extremamente tranquilos e sem poluição sonora.", answer: false },
+  { text: "As novelas de frutas são feitas a mão por desenhistas e animadores.", answer: false },
+
+  // Internet & Tecnologia
+  { text: "NPC são personagens que agem de forma repetitiva e não são controlados por ninguém.", answer: true },
+  { text: "AFK significa que o jogador está offline.", answer: true },
+  { text: "TikTok foi criado antes do YouTube.", answer: false },
+  { text: "IA consegue criar imagens e vozes falsas.", answer: true },
+  { text: "Discord é usado por muitos gamers para conversar em chamadas.", answer: true },
+  { text: "Twitch é uma plataforma famosa por lives de jogos.", answer: true },
+
+  // Difíceis / Pegadinhas
+  { text: "No Minecraft, ouro quebra mais rápido que diamante, mas dura menos.", answer: true },
+  { text: "No Roblox, Robux podem ser ganhos infinitamente apenas entrando nos jogos.", answer: false },
+  { text: "Charizard originalmente NÃO é do tipo dragão.", answer: true },
+  { text: "Mario Kart é um jogo de corrida da Nintendo.", answer: true },
+  { text: "No Among Us, fantasmas ainda conseguem ajudar nas tarefas.", answer: true },
+  { text: "Sonic é um personagem da Nintendo.", answer: false },
+
+  // Caóticas Modernas
+  { text: "Existem vídeos feitos por IA com capivaras DJs, tubarões de tênis e crocodilos bombardeiros.", answer: true },
+  { text: "Os memes atuais da internet estão ficando cada vez mais normais e fáceis de entender.", answer: false },
+  { text: "Muitos memes nasceram no TikTok e Shorts.", answer: true },
+  { text: "O professor odeia memes brainrot.", answer: true }
 ];
 
 export default function GamePage() {
