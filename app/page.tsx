@@ -7,13 +7,13 @@ import { Volume2, VolumeX, ShieldQuestion } from 'lucide-react';
 
 const INITIAL_QUESTIONS = [
   // Games: Minecraft & Roblox
-  { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
-  { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
-  { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
-  { text: "In Roblox, players use 'Robux' to buy items and clothes for their avatars.", answer: true },
-  { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
-  { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
-  { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
+  // { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
+  // { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
+  // { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
+  // { text: "In Roblox, players use 'Robux' to buy items and clothes for their avatars.", answer: true },
+  // { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
+  // { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
+  // { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
 
   // Games: Other Popular Titles
   { text: "In Brawl Stars, you can play alone or in teams of three players.", answer: true },
@@ -32,11 +32,11 @@ const INITIAL_QUESTIONS = [
 
   // IT Basics: Hardware & Internet
   { text: "The 'Mouse' is a computer part used to click and move the cursor on the screen.", answer: true },
-  { text: "A 'Monitor' is a machine used to print paper documents.", answer: false },
-  { text: "The 'Keyboard' has numbers, letters, and special symbols to type.", answer: true },
+  { text: "A 'Monitor' has separate power outlet for the CPU.", answer: false },
+  { text: "The 'Keyboard' can contain or no numbers, but always letters, and special symbols to type.", answer: true },
   { text: "Wi-Fi is a technology to connect to the internet without using cables.", answer: true },
-  { text: "To turn on a computer, you must press the 'Delete' button.", answer: false },
-  { text: "Download means to copy a file from the internet to your computer.", answer: true },
+  { text: "To turn on a computer, you can press the 'Alt' + 'Delete' button.", answer: false },
+  { text: "Its always safe download a file from the internet to your computer.", answer: false },
   { text: "A good password should be easy to guess, like '123456'.", answer: false },
   { text: "Google is a famous search engine used to find information on the internet.", answer: true },
   { text: "The CPU is known as the 'brain' of the computer.", answer: true },
