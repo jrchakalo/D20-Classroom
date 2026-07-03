@@ -8,12 +8,23 @@ import { Volume2, VolumeX, ShieldQuestion } from 'lucide-react';
 const INITIAL_QUESTIONS = [
   // Games: Minecraft & Roblox
   // { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
-  // { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
+  { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
   { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
   // { text: "In Roblox, players use 'Robux' to buy items and clothes for their avatars.", answer: true },
   { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
-  // { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
+  { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
   { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
+  // Roblox (Hard)
+  { text: "The default Roblox avatar was originally known as 'Blocky'.", answer: true },
+  { text: "The game 'Adopt Me!' was originally created as a pet-collecting game.", answer: false },
+  { text: "The Roblox event 'The Hunt: Mega Edition' was held in 2025.", answer: true },
+  { text: "Players can publish a Roblox game without spending any Robux.", answer: true },
+  { text: "In 'Blox Fruits', players choose between Pirates and Marines when starting the game.", answer: true },
+  { text: "The currency 'Tix' still exists alongside Robux in Roblox.", answer: false },
+  { text: "In 'Tower of Hell', there are no checkpoints during a normal round.", answer: true },
+  { text: "Robux can only be earned by purchasing them with real money.", answer: false },
+  { text: "The classic Roblox 'oof' death sound is still used in all new Roblox games.", answer: false },
+  { text: "Roblox Studio uses the Lua programming language to create game scripts.", answer: true },
 
   // Games: Other Popular Titles
   { text: "In Brawl Stars, you can play alone or in teams of three players.", answer: true },
