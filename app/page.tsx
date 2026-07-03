@@ -9,11 +9,11 @@ const INITIAL_QUESTIONS = [
   // Games: Minecraft & Roblox
   // { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
   // { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
-  // { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
+  { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
   // { text: "In Roblox, players use 'Robux' to buy items and clothes for their avatars.", answer: true },
-  // { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
+  { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
   // { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
-  // { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
+  { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
 
   // Games: Other Popular Titles
   { text: "In Brawl Stars, you can play alone or in teams of three players.", answer: true },
