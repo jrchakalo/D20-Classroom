@@ -6,61 +6,59 @@ import confetti from 'canvas-confetti';
 import { Volume2, VolumeX, ShieldQuestion } from 'lucide-react';
 
 const INITIAL_QUESTIONS = [
-  // Games & Roblox
-  { text: "No Roblox, Dress to Impress é um jogo focado em competição de moda.", answer: true },
-  { text: "O Ender Dragon aparece naturalmente no mundo normal do Minecraft.", answer: false },
-  { text: "No Fortnite, existe ten como jogar com construção.", answer: false },
-  { text: "Brawl Stars foi criado pela mesma empresa do Clash Royale.", answer: true },
-  { text: "No Minecraft, Wardens enxergam os jogadores normalmente.", answer: false },
-  { text: "No Roblox, Brookhaven é um jogo de terror.", answer: false },
-  { text: "Pikachu evolui diretamente para Charizard.", answer: false },
-  { text: "No Pokémon, Magikarp evolui para Gyarados.", answer: true },
+  // Games: Minecraft & Roblox
+  { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
+  { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
+  { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
+  { text: "In Roblox, players use 'Robux' to buy items and clothes for their avatars.", answer: true },
+  { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
+  { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
+  { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
 
-  // Cultura Geek
-  { text: "O multiverso é um conceito muito usado atualmente nos filmes da Marvel.", answer: true },
-  { text: "Batman pertence ao universo Marvel.", answer: false },
-  { text: "O sabre de luz vermelho normalmente é usado pelos vilões em Star Wars.", answer: true },
-  { text: "Miles Morales é uma versão do Homem-Aranha.", answer: true },
-  { text: "O Demogorgon aparece em Stranger Things.", answer: true },
-  { text: "Hogwarts fica localizada em Nova York.", answer: false },
+  // Games: Other Popular Titles
+  { text: "In Brawl Stars, you can play alone or in teams of three players.", answer: true },
+  { text: "Valorant is a competitive shooting game.", answer: true },
+  { text: "Free Fire is a battle royale game where you jump from an airplane.", answer: true },
+  { text: "In Brawl Stars, Shelly is the very first character you unlock.", answer: true },
+  { text: "League of Legends is a racing game with fast cars.", answer: false },
 
-  // Animes
-  { text: "Gojo Satoru é o personagem mais forte de Jujutsu Kaisen.", answer: true },
-  { text: "Tanjiro usa respiração da água em Demon Slayer.", answer: true },
-  { text: "Luffy quer encontrar as Esferas do Dragão.", answer: false },
-  { text: "Frieren é um anime sobre uma elfa.", answer: true },
-  { text: "Sukuna derrotou o Naruto.", answer: false },
-  { text: "Chainsaw Man possui um protagonista que vira uma serra eletrica.", answer: true },
+  // Anime & Pop Culture
+  { text: "In 'Spy x Family', the character Anya has the power to read minds.", answer: true },
+  { text: "In 'My Hero Academia', Izuku Midoriya is born with a very strong superpower.", answer: false },
+  { text: "Goku is the main character of the anime Dragon Ball.", answer: true },
+  { text: "In 'Naruto', the main character wants to become the Hokage of his village.", answer: true },
+  { text: "'One Piece' is an anime about a group of space aliens.", answer: false },
+  { text: "Iron Man is a superhero who uses a high-tech suit of armor to fly.", answer: true },
 
-  // Memes & Trends 2025-2026
-  { text: "Tralalero Tralala é parte dos memes brainrot.", answer: true },
-  { text: "Bombardino Crocodilo surgiu em vídeos de IA.", answer: true },
-  { text: "Os memes brainrot normalmente fazem muito sentido e possuem histórias normais.", answer: false },
-  { text: "Tung Tung Tung Sahur é real e pode te pegar.", answer: false },
-  { text: "Brainrots são memes extremamente tranquilos e sem poluição sonora.", answer: false },
-  { text: "As novelas de frutas são feitas a mão por desenhistas e animadores.", answer: false },
+  // IT Basics: Hardware & Internet
+  { text: "The 'Mouse' is a computer part used to click and move the cursor on the screen.", answer: true },
+  { text: "A 'Monitor' is a machine used to print paper documents.", answer: false },
+  { text: "The 'Keyboard' has numbers, letters, and special symbols to type.", answer: true },
+  { text: "Wi-Fi is a technology to connect to the internet without using cables.", answer: true },
+  { text: "To turn on a computer, you must press the 'Delete' button.", answer: false },
+  { text: "Download means to copy a file from the internet to your computer.", answer: true },
+  { text: "A good password should be easy to guess, like '123456'.", answer: false },
+  { text: "Google is a famous search engine used to find information on the internet.", answer: true },
+  { text: "The CPU is known as the 'brain' of the computer.", answer: true },
 
-  // Internet & Tecnologia
-  { text: "NPC são personagens que agem de forma repetitiva e não são controlados por ninguém.", answer: true },
-  { text: "AFK significa que o jogador está offline.", answer: true },
-  { text: "TikTok foi criado antes do YouTube.", answer: false },
-  { text: "IA consegue criar imagens e vozes falsas.", answer: true },
-  { text: "Discord é usado por muitos gamers para conversar em chamadas.", answer: true },
-  { text: "Twitch é uma plataforma famosa por lives de jogos.", answer: true },
+  // Software Basics: Word, PowerPoint & Excel
+  { text: "Microsoft Word is a program used to type and format text documents.", answer: true },
+  { text: "In Microsoft PowerPoint, you can create slide presentations with images.", answer: true },
+  { text: "Microsoft Excel is a program designed to edit photos and videos.", answer: false },
+  { text: "In Word, the 'Bold' option makes the text thicker and darker.", answer: true },
+  { text: "In PowerPoint, you can add animations to make text and images move.", answer: true },
+  { text: "Excel uses rows and columns to organize numbers and information.", answer: true },
+  { text: "In Word, the keyboard shortcut 'Ctrl + C' is used to paste the text.", answer: false },
+  { text: "You can insert tables and colorful charts inside an Excel document.", answer: true },
+  { text: "In PowerPoint, the 'F5' key is a shortcut to start the presentation.", answer: true },
+  { text: "Microsoft Word cannot save files in PDF format.", answer: false },
 
-  // Difíceis / Pegadinhas
-  { text: "No Minecraft, ouro quebra mais rápido que diamante, mas dura menos.", answer: true },
-  { text: "No Roblox, Robux podem ser ganhos infinitamente apenas entrando nos jogos.", answer: false },
-  { text: "Charizard originalmente NÃO é do tipo dragão.", answer: true },
-  { text: "Mario Kart é um jogo de corrida da Nintendo.", answer: true },
-  { text: "No Among Us, fantasmas ainda conseguem ajudar nas tarefas.", answer: true },
-  { text: "Sonic é um personagem da Nintendo.", answer: false },
-
-  // Caóticas Modernas
-  { text: "Existem vídeos feitos por IA com capivaras DJs, tubarões de tênis e crocodilos bombardeiros.", answer: true },
-  { text: "Os memes atuais da internet estão ficando cada vez mais normais e fáceis de entender.", answer: false },
-  { text: "Muitos memes nasceram no TikTok e Shorts.", answer: true },
-  { text: "O professor odeia memes brainrot.", answer: true }
+  // General Tech Fun Facts (Pegadinhas e Utilidades)
+  { text: "A 'Browser' is a program used to access the web, like Google Chrome.", answer: true },
+  { text: "An 'Emoji' is a small digital image used to express emotions in text messages.", answer: true },
+  { text: "To undo a mistake in a document, you can press 'Ctrl + Z' on your keyboard.", answer: true },
+  { text: "Hardware is the part of the computer that you cannot touch, like the programs.", answer: false },
+  { text: "A computer 'Virus' is a program that makes your computer run faster.", answer: false }
 ];
 
 export default function GamePage() {
