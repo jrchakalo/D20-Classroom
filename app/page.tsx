@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { Volume2, VolumeX, ShieldQuestion } from 'lucide-react';
 
-const INITIAL_QUESTIONS = [
+// Inglês
+/* const INITIAL_QUESTIONS = [
   // Games: Minecraft & Roblox
   // { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
   { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
@@ -70,7 +71,120 @@ const INITIAL_QUESTIONS = [
   { text: "To undo a mistake in a document, you can press 'Ctrl + Z' on your keyboard.", answer: true },
   { text: "Hardware is the part of the computer that you cannot touch, like the programs.", answer: false },
   { text: "A computer 'Virus' is a program that makes your computer run faster.", answer: false }
+]; */
+
+// Português
+const INITIAL_QUESTIONS = [
+  // Jogos: Minecraft & Roblox
+  // { text: "No Minecraft, os creepers explodem quando chegam perto de você.", answer: true },
+  { text: "No Roblox, 'Blox Fruits' é um jogo sobre colecionar animais de estimação em uma cidade moderna.", answer: false },
+  { text: "No Minecraft, você precisa de uma picareta para minerar blocos de pedra.", answer: true },
+  // { text: "No Roblox, os jogadores usam 'Robux' para comprar itens e roupas para seus avatares.", answer: true },
+  { text: "No Minecraft, é possível encontrar vilas com personagens não jogáveis (NPCs) para trocar itens.", answer: true },
+  { text: "No Roblox, só é possível jogar; não dá para criar seus próprios jogos.", answer: false },
+  { text: "No Minecraft, os diamantes são o material mais fácil de encontrar no jogo.", answer: false },
+
+  // Roblox (Difícil)
+  { text: "O avatar padrão clássico do Roblox era conhecido como 'Blocky'.", answer: true },
+  { text: "O jogo 'Adopt Me!' foi criado originalmente como um jogo de colecionar animais de estimação.", answer: false },
+  { text: "O evento do Roblox 'The Hunt: Mega Edition' aconteceu em 2025.", answer: true },
+  { text: "É possível publicar um jogo no Roblox sem gastar Robux.", answer: true },
+  { text: "Em 'Blox Fruits', os jogadores escolhem entre Piratas e Marinheiros ao começar o jogo.", answer: true },
+  { text: "A moeda 'Tix' ainda existe no Roblox junto com os Robux.", answer: false },
+  { text: "Em uma rodada normal de 'Tower of Hell', não há pontos de salvamento (checkpoints).", answer: true },
+  { text: "Só é possível conseguir Robux comprando-os com dinheiro real.", answer: false },
+  { text: "O som clássico de morte 'oof' ainda é usado em todos os jogos novos do Roblox.", answer: false },
+  { text: "O Roblox Studio usa a linguagem de programação Lua para criar scripts de jogos.", answer: true },
+
+  // Jogos: Outros títulos populares
+  { text: "Em Brawl Stars, é possível jogar sozinho ou em equipes de três jogadores.", answer: true },
+  { text: "Valorant é um jogo de tiro competitivo.", answer: true },
+  { text: "Free Fire é um jogo do gênero battle royale em que os jogadores saltam de um avião.", answer: true },
+  { text: "Em Brawl Stars, Shelly é a primeira personagem que você desbloqueia.", answer: true },
+  { text: "League of Legends é um jogo de corrida com carros velozes.", answer: false },
+
+  // Anime e cultura pop (perguntas existentes)
+  { text: "Em 'Spy x Family', a personagem Anya tem o poder de ler mentes.", answer: true },
+  { text: "Em 'My Hero Academia', Izuku Midoriya nasce com um superpoder muito forte.", answer: false },
+  { text: "Goku é o personagem principal do anime Dragon Ball.", answer: true },
+  { text: "Em 'Naruto', o protagonista quer se tornar o Hokage de sua vila.", answer: true },
+  { text: "'One Piece' é um anime sobre um grupo de alienígenas espaciais.", answer: false },
+  { text: "O Homem de Ferro é um super-herói que usa uma armadura tecnológica para voar.", answer: true },
+
+  // Anime (Difícil)
+  { text: "Em 'Fullmetal Alchemist: Brotherhood', a troca equivalente é um princípio central da alquimia.", answer: true },
+  { text: "Em 'Hunter x Hunter', o Nen costuma ser dividido em seis categorias principais.", answer: true },
+  { text: "Em 'JoJo's Bizarre Adventure', pessoas comuns conseguem ver normalmente todos os Stands.", answer: false },
+  { text: "Em 'Demon Slayer', os efeitos visuais das técnicas de respiração são sempre fenômenos elementais literais que todos podem ver.", answer: false },
+  { text: "Em 'Neon Genesis Evangelion', as unidades EVA são apenas robôs comuns feitos de metal.", answer: false },
+  { text: "Em 'Death Note', o nome verdadeiro de L é Light Yagami.", answer: false },
+  { text: "Em 'Naruto', o Sharingan é uma habilidade hereditária associada ao clã Uchiha.", answer: true },
+  { text: "Em 'One Piece', Robin consegue ler os Poneglyphs, antigos blocos de pedra com inscrições.", answer: true },
+  { text: "Em 'Jujutsu Kaisen', a Expansão de Domínio chamada 'Santuário Malevolente' pertence a Gojo Satoru.", answer: false },
+  { text: "Em 'Attack on Titan', Eren Yeager pertence ao clã Ackerman.", answer: false },
+  { text: "Em 'Dragon Ball', Gohan recebeu o nome em homenagem ao avô adotivo de Goku, Son Gohan.", answer: true },
+  { text: "Nos jogos principais de Pokémon, é impossível capturar Pokémon lendários durante a jogabilidade normal.", answer: false },
+
+  // Cultura pop (Difícil)
+  { text: "Em 'Matrix', a pílula vermelha permite que Neo continue vivendo na realidade simulada.", answer: false },
+  { text: "Em 'Star Wars', a Ordem 66 desencadeia a perseguição e a morte de muitos Jedi.", answer: true },
+  { text: "No universo de 'Duna', os trajes destiladores (stillsuits) ajudam os Fremen a conservar água no deserto.", answer: true },
+  { text: "Em 'O Senhor dos Anéis', Gandalf foi quem forjou o Um Anel.", answer: false },
+  { text: "Na série 'Breaking Bad', Walter White usa o nome Heisenberg.", answer: true },
+  { text: "No Universo Cinematográfico Marvel, Thanos usa as seis Joias do Infinito para eliminar metade da vida do universo.", answer: true },
+  { text: "Em 'Game of Thrones', a origem do nome Hodor está ligada à frase 'Hold the door'.", answer: true },
+  { text: "Em 'Harry Potter', Sirius Black foi quem traiu Lílian e Tiago Potter, entregando-os a Voldemort.", answer: false },
+  { text: "Em 'Interestelar', o planeta onde o tempo passa muito mais devagar fica perto do enorme buraco negro Gargantua.", answer: true },
+  { text: "Nos livros e jogos de 'The Witcher', Geralt é conhecido pelo apelido de Lobo Branco.", answer: true },
+
+  // Animais ameaçados de extinção (15 perguntas)
+  { text: "A vaquita, um pequeno cetáceo, é classificada como Criticamente em Perigo de extinção.", answer: true },
+  { text: "A vaquita vive naturalmente no norte do Golfo da Califórnia, no México.", answer: true },
+  { text: "A captura acidental em redes de pesca é uma das principais ameaças à vaquita.", answer: true },
+  { text: "O panda-gigante continua classificado globalmente como Criticamente em Perigo pela Lista Vermelha da IUCN.", answer: false },
+  { text: "A baleia-azul é classificada como Em Perigo de extinção pela IUCN.", answer: true },
+  { text: "O dodô ainda possui populações selvagens vivendo naturalmente nas ilhas Maurício.", answer: false },
+  { text: "O leopardo-de-amur é classificado como Criticamente em Perigo de extinção.", answer: true },
+  { text: "Os orangotangos são animais nativos da África.", answer: false },
+  { text: "A tartaruga-de-pente, uma tartaruga marinha, é classificada como Criticamente em Perigo.", answer: true },
+  { text: "O lixo plástico não representa perigo para tartarugas marinhas, pois elas conseguem sempre distingui-lo de alimento.", answer: false },
+  { text: "O desmatamento pode destruir habitats e aumentar o risco de extinção de espécies animais.", answer: true },
+  { text: "Proteger habitats naturais e criar áreas de conservação pode ajudar a preservar espécies ameaçadas.", answer: true },
+  { text: "A caça furtiva e o comércio ilegal de animais silvestres podem ameaçar a sobrevivência dos pangolins.", answer: true },
+  { text: "Os ursos-polares são nativos da Antártida, no Polo Sul.", answer: false },
+  { text: "Apenas mamíferos podem ser classificados como ameaçados de extinção; aves, répteis e anfíbios não podem.", answer: false },
+
+  // IT Basics: Hardware & Internet
+  { text: "The 'Mouse' is a computer part used to click and move the cursor on the screen.", answer: true },
+  { text: "A 'Monitor' has separate power outlet for the CPU.", answer: false },
+  { text: "The 'Keyboard' can contain or no numbers, but always letters, and special symbols to type.", answer: true },
+  { text: "Wi-Fi is a technology to connect to the internet without using cables.", answer: true },
+  { text: "To turn on a computer, you can press the 'Alt' + 'Delete' button.", answer: false },
+  { text: "Its always safe download a file from the internet to your computer.", answer: false },
+  { text: "A good password should be easy to guess, like '123456'.", answer: false },
+  { text: "Google is a famous search engine used to find information on the internet.", answer: true },
+  { text: "The CPU is known as the 'brain' of the computer.", answer: true },
+
+  // Software Basics: Word, PowerPoint & Excel
+  { text: "Microsoft Word is a program used to type and format text documents.", answer: true },
+  { text: "In Microsoft PowerPoint, you can create slide presentations with images.", answer: true },
+  { text: "Microsoft Excel is a program designed to edit photos and videos.", answer: false },
+  { text: "In Word, the 'Bold' option makes the text thicker and darker.", answer: true },
+  { text: "In PowerPoint, you can add animations to make text and images move.", answer: true },
+  { text: "Excel uses rows and columns to organize numbers and information.", answer: true },
+  { text: "In Word, the keyboard shortcut 'Ctrl + C' is used to paste the text.", answer: false },
+  { text: "You can insert tables and colorful charts inside an Excel document.", answer: true },
+  { text: "In PowerPoint, the 'F5' key is a shortcut to start the presentation.", answer: true },
+  { text: "Microsoft Word cannot save files in PDF format.", answer: false },
+
+  // General Tech Fun Facts (Pegadinhas e Utilidades)
+  { text: "A 'Browser' is a program used to access the web, like Google Chrome.", answer: true },
+  { text: "An 'Emoji' is a small digital image used to express emotions in text messages.", answer: true },
+  { text: "To undo a mistake in a document, you can press 'Ctrl + Z' on your keyboard.", answer: true },
+  { text: "Hardware is the part of the computer that you cannot touch, like the programs.", answer: false },
+  { text: "A computer 'Virus' is a program that makes your computer run faster.", answer: false }
 ];
+
 
 export default function GamePage() {
   const [gameState, setGameState] = useState<'start' | 'playing'>('start');
