@@ -1,475 +1,704 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { Volume2, VolumeX, ShieldQuestion } from 'lucide-react';
+import {
+  ArrowLeft,
+  Candy,
+  Check,
+  ChevronRight,
+  Flame,
+  Ghost,
+  GraduationCap,
+  Moon,
+  RotateCcw,
+  Skull,
+  Sparkles,
+  Trophy,
+} from 'lucide-react';
+import HalloweenBackdrop from '@/components/HalloweenBackdrop';
+import QuestionModal from '@/components/QuestionModal';
+import VolumeControl from '@/components/VolumeControl';
+import {
+  DICE_NUMBERS,
+  DIFFICULTIES,
+  MODES,
+  getDeck,
+  getDifficultyMeta,
+  shuffle,
+} from '@/lib/game';
+import type { AnswerStatus, DifficultyId, ModeId, Question } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
-// Inglês
-/* const INITIAL_QUESTIONS = [
-  // Games: Minecraft & Roblox
-  // { text: "In Minecraft, creepers explode when they get close to you.", answer: true },
-  { text: "In Roblox, 'Blox Fruits' is a game about collecting pets in a modern city.", answer: false },
-  { text: "In Minecraft, you need a pickaxe to mine stone blocks.", answer: true },
-  // { text: "In Roblox, players use 'Robux' to buy items and clothes for their avatars.", answer: true },
-  { text: "In Minecraft, you can find villages with NPCs to trade items.", answer: true },
-  { text: "In Roblox, you can only play games, you cannot create your own games.", answer: false },
-  { text: "In Minecraft, diamonds are the easiest material to find in the game.", answer: false },
-  // Roblox (Hard)
-  { text: "The default Roblox avatar was originally known as 'Blocky'.", answer: true },
-  { text: "The game 'Adopt Me!' was originally created as a pet-collecting game.", answer: false },
-  { text: "The Roblox event 'The Hunt: Mega Edition' was held in 2025.", answer: true },
-  { text: "Players can publish a Roblox game without spending any Robux.", answer: true },
-  { text: "In 'Blox Fruits', players choose between Pirates and Marines when starting the game.", answer: true },
-  { text: "The currency 'Tix' still exists alongside Robux in Roblox.", answer: false },
-  { text: "In 'Tower of Hell', there are no checkpoints during a normal round.", answer: true },
-  { text: "Robux can only be earned by purchasing them with real money.", answer: false },
-  { text: "The classic Roblox 'oof' death sound is still used in all new Roblox games.", answer: false },
-  { text: "Roblox Studio uses the Lua programming language to create game scripts.", answer: true },
+// "Danse Macabre - Busy Strings" by Kevin MacLeod (incompetech.com), CC BY 3.0.
+const HALLOWEEN_BGM_URL =
+  'https://upload.wikimedia.org/wikipedia/commons/3/32/Danse_Macabre_-_Busy_Strings_%28ISRC_USUAN1100556%29.mp3';
+const CLASSIC_BGM_URL = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+const VOLUME_STORAGE_KEY = 'd20-classroom-volume';
+const DEFAULT_VOLUME = 0.7;
+const ROUND_LENGTH = 20;
+const HALLOWEEN_CONFETTI = ['#ff7a18', '#a855f7', '#7dfabf', '#ffd166', '#ff4d6d'];
+const CLASSIC_CONFETTI = ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d'];
 
-  // Games: Other Popular Titles
-  { text: "In Brawl Stars, you can play alone or in teams of three players.", answer: true },
-  { text: "Valorant is a competitive shooting game.", answer: true },
-  { text: "Free Fire is a battle royale game where you jump from an airplane.", answer: true },
-  { text: "In Brawl Stars, Shelly is the very first character you unlock.", answer: true },
-  { text: "League of Legends is a racing game with fast cars.", answer: false },
+const DIFFICULTY_ICONS = {
+  easy: Candy,
+  medium: Ghost,
+  hard: Skull,
+} as const;
 
-  // Anime & Pop Culture
-  { text: "In 'Spy x Family', the character Anya has the power to read minds.", answer: true },
-  { text: "In 'My Hero Academia', Izuku Midoriya is born with a very strong superpower.", answer: false },
-  { text: "Goku is the main character of the anime Dragon Ball.", answer: true },
-  { text: "In 'Naruto', the main character wants to become the Hokage of his village.", answer: true },
-  { text: "'One Piece' is an anime about a group of space aliens.", answer: false },
-  { text: "Iron Man is a superhero who uses a high-tech suit of armor to fly.", answer: true },
+const MODE_ICONS = {
+  halloween: Ghost,
+  classic: GraduationCap,
+} as const;
 
-  // IT Basics: Hardware & Internet
-  { text: "The 'Mouse' is a computer part used to click and move the cursor on the screen.", answer: true },
-  { text: "A 'Monitor' has separate power outlet for the CPU.", answer: false },
-  { text: "The 'Keyboard' can contain or no numbers, but always letters, and special symbols to type.", answer: true },
-  { text: "Wi-Fi is a technology to connect to the internet without using cables.", answer: true },
-  { text: "To turn on a computer, you can press the 'Alt' + 'Delete' button.", answer: false },
-  { text: "Its always safe download a file from the internet to your computer.", answer: false },
-  { text: "A good password should be easy to guess, like '123456'.", answer: false },
-  { text: "Google is a famous search engine used to find information on the internet.", answer: true },
-  { text: "The CPU is known as the 'brain' of the computer.", answer: true },
-
-  // Software Basics: Word, PowerPoint & Excel
-  { text: "Microsoft Word is a program used to type and format text documents.", answer: true },
-  { text: "In Microsoft PowerPoint, you can create slide presentations with images.", answer: true },
-  { text: "Microsoft Excel is a program designed to edit photos and videos.", answer: false },
-  { text: "In Word, the 'Bold' option makes the text thicker and darker.", answer: true },
-  { text: "In PowerPoint, you can add animations to make text and images move.", answer: true },
-  { text: "Excel uses rows and columns to organize numbers and information.", answer: true },
-  { text: "In Word, the keyboard shortcut 'Ctrl + C' is used to paste the text.", answer: false },
-  { text: "You can insert tables and colorful charts inside an Excel document.", answer: true },
-  { text: "In PowerPoint, the 'F5' key is a shortcut to start the presentation.", answer: true },
-  { text: "Microsoft Word cannot save files in PDF format.", answer: false },
-
-  // General Tech Fun Facts (Pegadinhas e Utilidades)
-  { text: "A 'Browser' is a program used to access the web, like Google Chrome.", answer: true },
-  { text: "An 'Emoji' is a small digital image used to express emotions in text messages.", answer: true },
-  { text: "To undo a mistake in a document, you can press 'Ctrl + Z' on your keyboard.", answer: true },
-  { text: "Hardware is the part of the computer that you cannot touch, like the programs.", answer: false },
-  { text: "A computer 'Virus' is a program that makes your computer run faster.", answer: false }
-]; */
-
-// Português
-const INITIAL_QUESTIONS = [
-  // Jogos: Minecraft & Roblox
-  // { text: "No Minecraft, os creepers explodem quando chegam perto de você.", answer: true },
-  { text: "No Roblox, 'Blox Fruits' é um jogo sobre colecionar animais de estimação em uma cidade moderna.", answer: false },
-  { text: "No Minecraft, você precisa de uma picareta para minerar blocos de pedra.", answer: true },
-  // { text: "No Roblox, os jogadores usam 'Robux' para comprar itens e roupas para seus avatares.", answer: true },
-  { text: "No Minecraft, é possível encontrar vilas com personagens não jogáveis (NPCs) para trocar itens.", answer: true },
-  { text: "No Roblox, só é possível jogar; não dá para criar seus próprios jogos.", answer: false },
-  { text: "No Minecraft, os diamantes são o material mais fácil de encontrar no jogo.", answer: false },
-
-  // Roblox (Difícil)
-  { text: "O avatar padrão clássico do Roblox era conhecido como 'Blocky'.", answer: true },
-  { text: "O jogo 'Adopt Me!' foi criado originalmente como um jogo de colecionar animais de estimação.", answer: false },
-  { text: "O evento do Roblox 'The Hunt: Mega Edition' aconteceu em 2025.", answer: true },
-  { text: "É possível publicar um jogo no Roblox sem gastar Robux.", answer: true },
-  { text: "Em 'Blox Fruits', os jogadores escolhem entre Piratas e Marinheiros ao começar o jogo.", answer: true },
-  { text: "A moeda 'Tix' ainda existe no Roblox junto com os Robux.", answer: false },
-  { text: "Em uma rodada normal de 'Tower of Hell', não há pontos de salvamento (checkpoints).", answer: true },
-  { text: "Só é possível conseguir Robux comprando-os com dinheiro real.", answer: false },
-  { text: "O som clássico de morte 'oof' ainda é usado em todos os jogos novos do Roblox.", answer: false },
-  { text: "O Roblox Studio usa a linguagem de programação Lua para criar scripts de jogos.", answer: true },
-
-  // Jogos: Outros títulos populares
-  { text: "Em Brawl Stars, é possível jogar sozinho ou em equipes de três jogadores.", answer: true },
-  { text: "Valorant é um jogo de tiro competitivo.", answer: true },
-  { text: "Free Fire é um jogo do gênero battle royale em que os jogadores saltam de um avião.", answer: true },
-  { text: "Em Brawl Stars, Shelly é a primeira personagem que você desbloqueia.", answer: true },
-  { text: "League of Legends é um jogo de corrida com carros velozes.", answer: false },
-
-  // Anime e cultura pop (perguntas existentes)
-  { text: "Em 'Spy x Family', a personagem Anya tem o poder de ler mentes.", answer: true },
-  { text: "Em 'My Hero Academia', Izuku Midoriya nasce com um superpoder muito forte.", answer: false },
-  { text: "Goku é o personagem principal do anime Dragon Ball.", answer: true },
-  { text: "Em 'Naruto', o protagonista quer se tornar o Hokage de sua vila.", answer: true },
-  { text: "'One Piece' é um anime sobre um grupo de alienígenas espaciais.", answer: false },
-  { text: "O Homem de Ferro é um super-herói que usa uma armadura tecnológica para voar.", answer: true },
-
-  // Anime (Difícil)
-  { text: "Em 'Fullmetal Alchemist: Brotherhood', a troca equivalente é um princípio central da alquimia.", answer: true },
-  { text: "Em 'Hunter x Hunter', o Nen costuma ser dividido em seis categorias principais.", answer: true },
-  { text: "Em 'JoJo's Bizarre Adventure', pessoas comuns conseguem ver normalmente todos os Stands.", answer: false },
-  { text: "Em 'Demon Slayer', os efeitos visuais das técnicas de respiração são sempre fenômenos elementais literais que todos podem ver.", answer: false },
-  { text: "Em 'Neon Genesis Evangelion', as unidades EVA são apenas robôs comuns feitos de metal.", answer: false },
-  { text: "Em 'Death Note', o nome verdadeiro de L é Light Yagami.", answer: false },
-  { text: "Em 'Naruto', o Sharingan é uma habilidade hereditária associada ao clã Uchiha.", answer: true },
-  { text: "Em 'One Piece', Robin consegue ler os Poneglyphs, antigos blocos de pedra com inscrições.", answer: true },
-  { text: "Em 'Jujutsu Kaisen', a Expansão de Domínio chamada 'Santuário Malevolente' pertence a Gojo Satoru.", answer: false },
-  { text: "Em 'Attack on Titan', Eren Yeager pertence ao clã Ackerman.", answer: false },
-  { text: "Em 'Dragon Ball', Gohan recebeu o nome em homenagem ao avô adotivo de Goku, Son Gohan.", answer: true },
-  { text: "Nos jogos principais de Pokémon, é impossível capturar Pokémon lendários durante a jogabilidade normal.", answer: false },
-
-  // Cultura pop (Difícil)
-  { text: "Em 'Matrix', a pílula vermelha permite que Neo continue vivendo na realidade simulada.", answer: false },
-  { text: "Em 'Star Wars', a Ordem 66 desencadeia a perseguição e a morte de muitos Jedi.", answer: true },
-  { text: "No universo de 'Duna', os trajes destiladores (stillsuits) ajudam os Fremen a conservar água no deserto.", answer: true },
-  { text: "Em 'O Senhor dos Anéis', Gandalf foi quem forjou o Um Anel.", answer: false },
-  { text: "Na série 'Breaking Bad', Walter White usa o nome Heisenberg.", answer: true },
-  { text: "No Universo Cinematográfico Marvel, Thanos usa as seis Joias do Infinito para eliminar metade da vida do universo.", answer: true },
-  { text: "Em 'Game of Thrones', a origem do nome Hodor está ligada à frase 'Hold the door'.", answer: true },
-  { text: "Em 'Harry Potter', Sirius Black foi quem traiu Lílian e Tiago Potter, entregando-os a Voldemort.", answer: false },
-  { text: "Em 'Interestelar', o planeta onde o tempo passa muito mais devagar fica perto do enorme buraco negro Gargantua.", answer: true },
-  { text: "Nos livros e jogos de 'The Witcher', Geralt é conhecido pelo apelido de Lobo Branco.", answer: true },
-
-  // Animais ameaçados de extinção (15 perguntas)
-  { text: "A vaquita, um pequeno cetáceo, é classificada como Criticamente em Perigo de extinção.", answer: true },
-  { text: "A vaquita vive naturalmente no norte do Golfo da Califórnia, no México.", answer: true },
-  { text: "A captura acidental em redes de pesca é uma das principais ameaças à vaquita.", answer: true },
-  { text: "O panda-gigante continua classificado globalmente como Criticamente em Perigo pela Lista Vermelha da IUCN.", answer: false },
-  { text: "A baleia-azul é classificada como Em Perigo de extinção pela IUCN.", answer: true },
-  { text: "O dodô ainda possui populações selvagens vivendo naturalmente nas ilhas Maurício.", answer: false },
-  { text: "O leopardo-de-amur é classificado como Criticamente em Perigo de extinção.", answer: true },
-  { text: "Os orangotangos são animais nativos da África.", answer: false },
-  { text: "A tartaruga-de-pente, uma tartaruga marinha, é classificada como Criticamente em Perigo.", answer: true },
-  { text: "O lixo plástico não representa perigo para tartarugas marinhas, pois elas conseguem sempre distingui-lo de alimento.", answer: false },
-  { text: "O desmatamento pode destruir habitats e aumentar o risco de extinção de espécies animais.", answer: true },
-  { text: "Proteger habitats naturais e criar áreas de conservação pode ajudar a preservar espécies ameaçadas.", answer: true },
-  { text: "A caça furtiva e o comércio ilegal de animais silvestres podem ameaçar a sobrevivência dos pangolins.", answer: true },
-  { text: "Os ursos-polares são nativos da Antártida, no Polo Sul.", answer: false },
-  { text: "Apenas mamíferos podem ser classificados como ameaçados de extinção; aves, répteis e anfíbios não podem.", answer: false },
-
-  // IT Basics: Hardware & Internet
-  { text: "The 'Mouse' is a computer part used to click and move the cursor on the screen.", answer: true },
-  { text: "A 'Monitor' has separate power outlet for the CPU.", answer: false },
-  { text: "The 'Keyboard' can contain or no numbers, but always letters, and special symbols to type.", answer: true },
-  { text: "Wi-Fi is a technology to connect to the internet without using cables.", answer: true },
-  { text: "To turn on a computer, you can press the 'Alt' + 'Delete' button.", answer: false },
-  { text: "Its always safe download a file from the internet to your computer.", answer: false },
-  { text: "A good password should be easy to guess, like '123456'.", answer: false },
-  { text: "Google is a famous search engine used to find information on the internet.", answer: true },
-  { text: "The CPU is known as the 'brain' of the computer.", answer: true },
-
-  // Software Basics: Word, PowerPoint & Excel
-  { text: "Microsoft Word is a program used to type and format text documents.", answer: true },
-  { text: "In Microsoft PowerPoint, you can create slide presentations with images.", answer: true },
-  { text: "Microsoft Excel is a program designed to edit photos and videos.", answer: false },
-  { text: "In Word, the 'Bold' option makes the text thicker and darker.", answer: true },
-  { text: "In PowerPoint, you can add animations to make text and images move.", answer: true },
-  { text: "Excel uses rows and columns to organize numbers and information.", answer: true },
-  { text: "In Word, the keyboard shortcut 'Ctrl + C' is used to paste the text.", answer: false },
-  { text: "You can insert tables and colorful charts inside an Excel document.", answer: true },
-  { text: "In PowerPoint, the 'F5' key is a shortcut to start the presentation.", answer: true },
-  { text: "Microsoft Word cannot save files in PDF format.", answer: false },
-
-  // General Tech Fun Facts (Pegadinhas e Utilidades)
-  { text: "A 'Browser' is a program used to access the web, like Google Chrome.", answer: true },
-  { text: "An 'Emoji' is a small digital image used to express emotions in text messages.", answer: true },
-  { text: "To undo a mistake in a document, you can press 'Ctrl + Z' on your keyboard.", answer: true },
-  { text: "Hardware is the part of the computer that you cannot touch, like the programs.", answer: false },
-  { text: "A computer 'Virus' is a program that makes your computer run faster.", answer: false }
-];
-
+type Screen = 'menu' | 'playing';
 
 export default function GamePage() {
-  const [gameState, setGameState] = useState<'start' | 'playing'>('start');
-  const [activePool, setActivePool] = useState([...INITIAL_QUESTIONS]);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentQuestion, setCurrentQuestion] = useState<typeof INITIAL_QUESTIONS[0] | null>(null);
-  const [answerStatus, setAnswerStatus] = useState<null | 'correct' | 'incorrect'>(null);
-  
-  const [isMuted, setIsMuted] = useState(false);
+  const [screen, setScreen] = useState<Screen>('menu');
+  const [mode, setMode] = useState<ModeId>('halloween');
+  const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
 
-  // Audio refs
+  const [queue, setQueue] = useState<Question[]>(() => shuffle(getDeck('halloween', 'medium')));
+  const [roundCount, setRoundCount] = useState(0);
+  const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const [currentNumber, setCurrentNumber] = useState<number | null>(null);
+  const [answerStatus, setAnswerStatus] = useState<AnswerStatus>(null);
+
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_VOLUME;
+
+    try {
+      const stored = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+      if (stored === null) return DEFAULT_VOLUME;
+
+      const parsed = Number(stored);
+      return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : DEFAULT_VOLUME;
+    } catch {
+      return DEFAULT_VOLUME;
+    }
+  });
+
   const audioCtxRef = useRef<AudioContext | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
-  
-  // Track which number was pressed recently (just for UI styling if desired)
-  const [lastClickedNumber, setLastClickedNumber] = useState<number | null>(null);
+  // Synchronous guard: AnimatePresence freezes the exiting modal's props, so state
+  // alone cannot prevent an answer during the close animation.
+  const acceptingAnswersRef = useRef(false);
 
-  useEffect(() => {
-    // Initialize background music 
-    bgmRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-    if (bgmRef.current) {
-      bgmRef.current.loop = true;
-      bgmRef.current.volume = 0.2;
-    }
-  }, []);
+  const isHalloween = mode === 'halloween';
+  const difficultyMeta = getDifficultyMeta(difficulty);
+  const deckSize = useMemo(() => getDeck(mode, difficulty).length, [mode, difficulty]);
+  const roundComplete = roundCount >= ROUND_LENGTH;
 
-  useEffect(() => {
-    if (bgmRef.current) {
-      bgmRef.current.muted = isMuted;
-    }
-  }, [isMuted]);
+  const ensureAudioContext = useCallback(() => {
+    if (typeof window === 'undefined') return null;
 
-  const playSound = (freq: number, type: OscillatorType, dur: number) => {
-    if (isMuted || !audioCtxRef.current) return;
-    const osc = audioCtxRef.current.createOscillator();
-    const gain = audioCtxRef.current.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, audioCtxRef.current.currentTime);
-    gain.gain.setValueAtTime(0.1, audioCtxRef.current.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtxRef.current.currentTime + dur);
-    osc.connect(gain);
-    gain.connect(audioCtxRef.current.destination);
-    osc.start();
-    osc.stop(audioCtxRef.current.currentTime + dur);
-  };
-
-  const startGame = () => {
-    setGameState('playing');
     if (!audioCtxRef.current) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+      if (!AudioContextClass) return null;
       audioCtxRef.current = new AudioContextClass();
     }
-    if (bgmRef.current) {
-      bgmRef.current.play().catch(e => console.error("Audio play blocked", e));
-    }
-  };
 
-  const getRandomQuestion = () => {
-    let pool = [...activePool];
-    if (pool.length === 0) {
-      // Reset pool
-      pool = [...INITIAL_QUESTIONS];
+    if (audioCtxRef.current.state === 'suspended') {
+      void audioCtxRef.current.resume();
     }
-    
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    const selected = pool[randomIndex];
-    
-    // Remove from pool
-    pool.splice(randomIndex, 1);
-    setActivePool(pool);
-    
-    return selected;
-  };
 
-  const handleNumberClick = (number: number) => {
-    if (isModalOpen) return;
-    
-    setLastClickedNumber(number);
-    const q = getRandomQuestion();
-    setCurrentQuestion(q);
+    return audioCtxRef.current;
+  }, []);
+
+  const playTone = useCallback(
+    (frequency: number, type: OscillatorType, duration: number, level = 0.08) => {
+      if (isMuted || volume <= 0) return;
+
+      const context = ensureAudioContext();
+      if (!context) return;
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const now = context.currentTime;
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, level * volume), now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + duration + 0.03);
+    },
+    [ensureAudioContext, isMuted, volume]
+  );
+
+  const startBgm = useCallback(() => {
+    const track = isHalloween ? HALLOWEEN_BGM_URL : CLASSIC_BGM_URL;
+
+    if (bgmRef.current && bgmRef.current.dataset.track !== track) {
+      bgmRef.current.pause();
+      bgmRef.current = null;
+    }
+
+    if (!bgmRef.current) {
+      const audio = new Audio(track);
+      audio.loop = true;
+      audio.preload = 'none';
+      audio.dataset.track = track;
+      bgmRef.current = audio;
+    }
+
+    bgmRef.current.volume = Math.min(1, volume * 0.35);
+    bgmRef.current.muted = isMuted || volume <= 0;
+    bgmRef.current.play().catch(() => {
+      // Browsers can block autoplay; the game still works without music.
+    });
+  }, [isHalloween, isMuted, volume]);
+
+  useEffect(() => {
+    const audio = bgmRef.current;
+    if (!audio) return;
+
+    audio.volume = Math.min(1, volume * 0.35);
+    audio.muted = isMuted || volume <= 0;
+  }, [isMuted, volume]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
+    } catch {
+      // Storage can be unavailable in private or restricted browsing modes.
+    }
+  }, [volume]);
+
+  useEffect(() => {
+    return () => {
+      bgmRef.current?.pause();
+      bgmRef.current = null;
+      void audioCtxRef.current?.close();
+      audioCtxRef.current = null;
+    };
+  }, []);
+
+  const startGame = useCallback(() => {
+    setQueue(shuffle(getDeck(mode, difficulty)));
+    setRoundCount(0);
+    setScore({ correct: 0, total: 0 });
+    setStreak(0);
+    setBestStreak(0);
+    setCurrentQuestion(null);
+    setCurrentNumber(null);
     setAnswerStatus(null);
-    setIsModalOpen(true);
-    playSound(440, 'sine', 0.1);
-  };
+    acceptingAnswersRef.current = false;
+    setIsModalOpen(false);
+    setScreen('playing');
 
-  const handleAnswer = (guess: boolean) => {
-    if (!currentQuestion || answerStatus) return;
+    void ensureAudioContext();
+    startBgm();
+  }, [difficulty, ensureAudioContext, mode, startBgm]);
 
-    if (guess === currentQuestion.answer) {
-      setAnswerStatus('correct');
-      playSound(880, 'square', 0.2);
-      setTimeout(() => playSound(1100, 'square', 0.3), 100);
-      triggerConfetti();
-    } else {
-      setAnswerStatus('incorrect');
-      playSound(150, 'sawtooth', 0.4);
+  const startNewRound = useCallback(() => {
+    setQueue(shuffle(getDeck(mode, difficulty)));
+    setRoundCount(0);
+    setScore({ correct: 0, total: 0 });
+    setStreak(0);
+    setBestStreak(0);
+    setCurrentQuestion(null);
+    setCurrentNumber(null);
+    setAnswerStatus(null);
+    acceptingAnswersRef.current = false;
+    setIsModalOpen(false);
+    playTone(isHalloween ? 330 : 440, 'triangle', 0.1, 0.05);
+  }, [difficulty, isHalloween, mode, playTone]);
+
+  const backToMenu = useCallback(() => {
+    acceptingAnswersRef.current = false;
+    setIsModalOpen(false);
+    setScreen('menu');
+    setCurrentQuestion(null);
+    setCurrentNumber(null);
+    setAnswerStatus(null);
+    bgmRef.current?.pause();
+  }, []);
+
+  const drawQuestion = useCallback((): Question => {
+    if (queue.length === 0) {
+      const reshuffled = shuffle(getDeck(mode, difficulty));
+      setQueue(reshuffled.slice(1));
+      return reshuffled[0];
     }
-  };
+
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    return next;
+  }, [difficulty, mode, queue]);
+
+  const handleNumberClick = useCallback(
+    (number: number) => {
+      if (isModalOpen) return;
+
+      const question = drawQuestion();
+      setCurrentQuestion(question);
+      setCurrentNumber(number);
+      setAnswerStatus(null);
+      acceptingAnswersRef.current = true;
+      setIsModalOpen(true);
+      playTone(isHalloween ? 392 : 440, 'triangle', 0.09, 0.055);
+    },
+    [drawQuestion, isHalloween, isModalOpen, playTone]
+  );
+
+  const triggerConfetti = useCallback(() => {
+    const colors = isHalloween ? HALLOWEEN_CONFETTI : CLASSIC_CONFETTI;
+    const common = { colors, disableForReducedMotion: true };
+
+    confetti({ ...common, particleCount: 80, spread: 75, origin: { y: 0.62 } });
+    confetti({ ...common, particleCount: 45, angle: 55, spread: 55, origin: { x: 0, y: 0.7 } });
+    confetti({ ...common, particleCount: 45, angle: 125, spread: 55, origin: { x: 1, y: 0.7 } });
+  }, [isHalloween]);
+
+  const handleAnswer = useCallback(
+    (guess: boolean) => {
+      if (!acceptingAnswersRef.current || !isModalOpen || !currentQuestion || answerStatus) {
+        return;
+      }
+
+      acceptingAnswersRef.current = false;
+      const correct = guess === currentQuestion.answer;
+      setAnswerStatus(correct ? 'correct' : 'incorrect');
+      setRoundCount((previous) => Math.min(previous + 1, ROUND_LENGTH));
+      setScore((previous) => ({
+        correct: previous.correct + (correct ? 1 : 0),
+        total: previous.total + 1,
+      }));
+
+      if (correct) {
+        const nextStreak = streak + 1;
+        setStreak(nextStreak);
+        setBestStreak((previous) => Math.max(previous, nextStreak));
+        playTone(660, 'triangle', 0.16, 0.08);
+        window.setTimeout(() => playTone(990, 'triangle', 0.2, 0.07), 90);
+        triggerConfetti();
+      } else {
+        setStreak(0);
+        playTone(150, 'sawtooth', 0.3, 0.07);
+      }
+    },
+    [answerStatus, currentQuestion, isModalOpen, playTone, streak, triggerConfetti]
+  );
+
+  const closeQuestion = useCallback(() => {
+    acceptingAnswersRef.current = false;
+    setIsModalOpen(false);
+    playTone(300, 'sine', 0.06, 0.03);
+  }, [playTone]);
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    if (isMuted && volume === 0) setVolume(DEFAULT_VOLUME);
+    setIsMuted((muted) => !muted);
   };
 
-  const closeQuestion = () => {
-    setIsModalOpen(false);
-    setTimeout(() => {
-      setCurrentQuestion(null);
-      setAnswerStatus(null);
-      setLastClickedNumber(null);
-    }, 300); // Wait for modal exit animation
+  const handleVolumeChange = (value: number) => {
+    const next = Math.min(1, Math.max(0, value));
+    setVolume(next);
+    if (next > 0) setIsMuted(false);
   };
 
-  const triggerConfetti = () => {
-    const duration = 1000;
-    const end = Date.now() + duration;
-
-    const frame = () => {
-      confetti({
-        particleCount: 5,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
-      });
-      confetti({
-        particleCount: 5,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
-  };
-
-  const numbers = Array.from({ length: 20 }, (_, i) => i + 1);
+  const ModeIcon = MODE_ICONS[mode];
+  const selectedDifficulty = getDifficultyMeta(difficulty);
 
   return (
-    <div className="h-screen w-full bg-[#FFD166] text-[#073B4C] flex flex-col overflow-hidden font-sans relative">
-      
-      {gameState === 'start' && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-[#118AB2] z-[200] flex flex-col items-center justify-center text-white"
-        >
-          <h1 className="text-[64px] font-[900] mb-[20px] text-center leading-none uppercase tracking-tight">
-            D20 CLASSROOM<br/>CAN YOU GUESS?
-          </h1>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={startGame}
-            className="text-[48px] py-[20px] px-[60px] bg-[#FFD166] text-[#073B4C] border-[6px] border-[#073B4C] rounded-[24px] font-[900] shadow-[10px_10px_0_#fff] cursor-pointer uppercase flex items-center justify-center"
-          >
-            START GAME
-          </motion.button>
-        </motion.div>
-      )}
-
-      {gameState === 'playing' && (
-        <div className="flex-1 flex flex-col w-full h-full relative">
-          <header className="h-[80px] flex items-center justify-between px-[40px] bg-white border-b-[4px] border-[#073B4C] shrink-0">
-            <div className="text-[32px] font-[900] uppercase tracking-[-1px] text-[#073B4C]">Teacher Trivia</div>
-            <div className="flex gap-[12px] items-center">
-              <button 
-                onClick={toggleMute}
-                className="px-[16px] py-[8px] border-[3px] border-[#073B4C] rounded-[12px] font-bold cursor-pointer bg-[#FFD166] text-[#073B4C]"
-              >
-                MUTE: {isMuted ? 'ON' : 'OFF'}
-              </button>
-            </div>
-          </header>
-
-          <main className="flex-1 grid grid-cols-4 sm:grid-cols-5 grid-rows-4 gap-[16px] p-[24px]">
-            {numbers.map((num) => (
-              <motion.button
-                key={num}
-                onClick={() => handleNumberClick(num)}
-                className={`
-                  bg-white border-[4px] border-[#073B4C] rounded-[16px] flex items-center justify-center
-                  text-[36px] font-[900] text-[#073B4C] transition-all cursor-pointer shadow-[6px_6px_0_#073B4C]
-                  hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[8px_8px_0_#073B4C]
-                  active:translate-x-[4px] active:translate-y-[4px] active:shadow-none
-                  ${lastClickedNumber === num ? '!bg-[#E0E0E0] !opacity-60 !shadow-none !translate-x-0 !translate-y-0 cursor-default hover:translate-x-0 hover:translate-y-0 active:translate-x-0 active:translate-y-0' : ''}
-                `}
-              >
-                {num}
-              </motion.button>
-            ))}
-          </main>
-        </div>
-      )}
-
-      {/* Modal */}
-      <AnimatePresence>
-        {isModalOpen && currentQuestion && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className={`fixed inset-0 z-[100] flex items-center justify-center p-[20px] transition-colors duration-200
-               ${answerStatus === 'correct' ? 'bg-[#06D6A0]/40' : answerStatus === 'incorrect' ? 'bg-[#EF476F]/40' : 'bg-[#073B4C]/90'}
-            `}
-          >
-            <motion.div
-              initial={{ y: 50 }}
-              animate={
-                answerStatus === 'incorrect' 
-                  ? { y: 0, x: [-10, 10, -10, 10, 0] } // Shake
-                  : { y: 0 }
-              }
-              exit={{ y: 50, opacity: 0 }}
-              transition={{ type: "tween", duration: 0.2 }}
-              className="w-[600px] max-w-full bg-white border-[6px] border-[#073B4C] rounded-[32px] p-[40px] text-center shadow-[12px_12px_0_#06D6A0] flex flex-col gap-[24px]"
-            >
-               <div className="text-[14px] uppercase opacity-50 font-bold text-[#073B4C]">
-                 Dice Roll: {lastClickedNumber}
-               </div>
-
-               {answerStatus === null && (
-                 <>
-                    <h3 className="text-[28px] font-bold text-[#073B4C] leading-[1.4]">
-                      {currentQuestion.text}
-                    </h3>
-                    
-                    <div className="flex gap-[20px] justify-center">
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleAnswer(true)}
-                        className="flex-1 py-[20px] bg-[#06D6A0] text-white font-[900] text-[24px] uppercase border-[4px] border-[#073B4C] rounded-[16px] cursor-pointer"
-                      >
-                        True
-                      </motion.button>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleAnswer(false)}
-                        className="flex-1 py-[20px] bg-[#EF476F] text-white font-[900] text-[24px] uppercase border-[4px] border-[#073B4C] rounded-[16px] cursor-pointer"
-                      >
-                        False
-                      </motion.button>
-                    </div>
-                 </>
-               )}
-
-               {answerStatus && (
-                 <>
-                    {answerStatus === 'correct' ? (
-                      <h3 className="text-[28px] font-[900] text-[#06D6A0] leading-[1.4]">
-                        {currentQuestion.text}
-                      </h3>
-                    ) : (
-                      <h3 className="text-[28px] font-bold text-[#073B4C] leading-[1.4] opacity-50 line-through">
-                        {currentQuestion.text}
-                      </h3>
-                    )}
-                    <div className="text-center py-2 flex flex-col items-center">
-                      {answerStatus === 'correct' ? (
-                        <h3 className="text-[48px] font-[900] text-[#06D6A0] uppercase mb-[24px]">CORRECT!</h3>
-                      ) : (
-                        <h3 className="text-[48px] font-[900] text-[#EF476F] uppercase mb-[24px]">INCORRECT</h3>
-                      )}
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={closeQuestion}
-                        className="px-[30px] py-[12px] bg-[#073B4C] text-white rounded-[12px] font-bold text-[20px] uppercase cursor-pointer"
-                      >
-                        CONTINUE
-                      </motion.button>
-                    </div>
-                 </>
-               )}
-            </motion.div>
-          </motion.div>
+    <MotionConfig reducedMotion="user">
+      <div
+        className={cn(
+          'game-shell relative flex min-h-dvh w-full flex-col font-sans',
+          isHalloween ? 'theme-halloween' : 'theme-classic',
+          screen === 'playing' ? 'h-dvh overflow-hidden' : 'overflow-x-hidden'
         )}
-      </AnimatePresence>
-    </div>
+      >
+        {isHalloween && <HalloweenBackdrop dimmed={screen === 'playing'} />}
+
+        <AnimatePresence mode="wait">
+          {screen === 'menu' ? (
+            <motion.main
+              key="menu"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25 }}
+              className="relative z-10 mx-auto flex min-h-dvh w-full max-w-5xl flex-col justify-center px-4 py-8 sm:px-8"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)]">
+                  D20 Classroom
+                </span>
+                <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
+                  {isHalloween ? (
+                    <Moon className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
+                  )}
+                  {isHalloween ? 'Spooky season special' : 'Year-round fun'}
+                </span>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.header
+                  key={mode}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22 }}
+                  className="mt-6 sm:mt-8"
+                >
+                  <h1
+                    className={cn(
+                      'text-balance text-4xl font-black uppercase leading-[0.95] tracking-tight text-[var(--ink)] sm:text-6xl',
+                      isHalloween && 'hw-title'
+                    )}
+                  >
+                    {isHalloween ? (
+                      <>
+                        Halloween
+                        <br />
+                        Trivia
+                      </>
+                    ) : (
+                      <>
+                        Can you
+                        <br />
+                        guess?
+                      </>
+                    )}
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
+                    {isHalloween
+                      ? 'Trick or treat! Pick a difficulty, roll a real D20 and answer the spooky true-or-false questions.'
+                      : 'The original classroom icebreaker. Pick a mode and let the D20 decide the next question.'}
+                  </p>
+                </motion.header>
+              </AnimatePresence>
+
+              <section aria-label="Game mode" className="mt-6 grid gap-3 sm:grid-cols-2">
+                {MODES.map((item) => {
+                  const Icon = MODE_ICONS[item.id];
+                  const selected = mode === item.id;
+
+                  return (
+                    <motion.button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={selected}
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => setMode(item.id)}
+                      className={cn(
+                        'relative overflow-hidden rounded-2xl border-4 p-4 text-left transition-colors sm:p-5',
+                        selected
+                          ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
+                          : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span
+                          className={cn(
+                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2',
+                            selected
+                              ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
+                              : 'border-[var(--line-soft)] text-[var(--muted)]'
+                          )}
+                        >
+                          <Icon className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <span
+                          className={cn(
+                            'flex h-6 w-6 items-center justify-center rounded-full border-2 transition',
+                            selected
+                              ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
+                              : 'border-[var(--line-soft)] text-transparent'
+                          )}
+                        >
+                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                        </span>
+                      </div>
+                      <h2 className="mt-3 text-lg font-black text-[var(--ink)] sm:text-xl">{item.label}</h2>
+                      <p className="mt-1 text-xs font-medium leading-relaxed text-[var(--muted)] sm:text-sm">
+                        {item.description}
+                      </p>
+                    </motion.button>
+                  );
+                })}
+              </section>
+
+              <AnimatePresence initial={false}>
+                {isHalloween && (
+                  <motion.section
+                    key="difficulty"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    aria-label="Difficulty"
+                    className="mt-6"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                        Choose your difficulty
+                      </h2>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+                      {DIFFICULTIES.map((item) => {
+                        const Icon = DIFFICULTY_ICONS[item.id];
+                        const selected = difficulty === item.id;
+
+                        return (
+                          <motion.button
+                            key={item.id}
+                            type="button"
+                            aria-pressed={selected}
+                            whileHover={{ y: -2 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() => setDifficulty(item.id)}
+                            className={cn(
+                              'rounded-2xl border-2 p-3 text-left transition-colors',
+                              selected
+                                ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
+                                : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <Icon
+                                className={cn(
+                                  'h-5 w-5',
+                                  selected ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
+                                )}
+                                aria-hidden="true"
+                              />
+                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
+                                {item.audience}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-base font-black text-[var(--ink)]">{item.label}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                              {item.tagline}
+                            </p>
+                            <p className="mt-1 hidden text-xs leading-snug text-[var(--muted)] sm:block">
+                              {item.description}
+                            </p>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </motion.section>
+                )}
+              </AnimatePresence>
+
+              <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={startGame}
+                  className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] sm:w-auto sm:text-xl"
+                >
+                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                  {isHalloween ? 'Start the spooky round' : 'Start game'}
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </motion.button>
+
+                <div className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
+                  <p>Roll a real D20, then tap the number you rolled.</p>
+                  <p>
+                    {isHalloween
+                      ? `${selectedDifficulty.label} deck: ${selectedDifficulty.tagline}.`
+                      : 'Mixed topics: games, tech, anime and more.'}
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                Tip: press T or F to answer · Esc closes the question
+              </p>
+
+            </motion.main>
+          ) : (
+            <motion.div
+              key="playing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              inert={isModalOpen}
+              className="relative z-10 flex h-dvh w-full flex-col"
+            >
+              <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-4 border-[var(--line)] bg-[var(--surface)] px-3 py-2 sm:gap-3 sm:px-6 sm:py-3">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={backToMenu}
+                    aria-label="Back to menu"
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:px-3"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">Menu</span>
+                  </button>
+
+                  <div className="min-w-0">
+                    <h1 className="flex items-center gap-1.5 truncate text-base font-black uppercase tracking-tight text-[var(--ink)] sm:text-2xl">
+                      {isHalloween ? (
+                        <Ghost className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
+                      ) : (
+                        <GraduationCap className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
+                      )}
+                      {isHalloween ? 'Halloween Trivia' : 'Teacher Trivia'}
+                    </h1>
+                    <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
+                      {isHalloween
+                        ? `${difficultyMeta.label} · ${difficultyMeta.tagline}`
+                        : 'Classroom classic · mixed topics'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <div
+                    className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 text-xs font-black text-[var(--ink)]"
+                    aria-label={`Score: ${score.correct} correct out of ${score.total}`}
+                  >
+                    <Trophy className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                    <span>
+                      {score.correct}/{score.total}
+                    </span>
+                  </div>
+
+                  {streak >= 2 && (
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="flex h-10 items-center gap-1 rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2.5 text-xs font-black text-[var(--accent)]"
+                      aria-label={`Streak: ${streak}`}
+                    >
+                      <Flame className="h-4 w-4" aria-hidden="true" />
+                      {streak}
+                    </motion.div>
+                  )}
+
+                  <VolumeControl
+                    volume={volume}
+                    muted={isMuted}
+                    onVolumeChange={handleVolumeChange}
+                    onToggleMute={toggleMute}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={startNewRound}
+                    aria-label="Start a new round"
+                    className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">New round</span>
+                  </button>
+                </div>
+              </header>
+
+              <main className="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:gap-3 sm:p-4">
+                <div className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] sm:gap-3 sm:text-xs">
+                  <span className="whitespace-nowrap">Round progress</span>
+                  <div
+                    role="progressbar"
+                    aria-label="Round progress"
+                    aria-valuemin={0}
+                    aria-valuemax={ROUND_LENGTH}
+                    aria-valuenow={roundCount}
+                    className="h-2 flex-1 overflow-hidden rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)]"
+                  >
+                    <motion.div
+                      className="h-full rounded-full bg-[var(--accent)]"
+                      animate={{ width: `${(roundCount / ROUND_LENGTH) * 100}%` }}
+                      transition={{ type: 'spring', stiffness: 180, damping: 26 }}
+                    />
+                  </div>
+                  <span className="whitespace-nowrap">
+                    {Math.min(roundCount, ROUND_LENGTH)}/{ROUND_LENGTH}
+                  </span>
+                  {bestStreak >= 2 && (
+                    <span className="hidden whitespace-nowrap text-[var(--accent)] sm:inline">
+                      Best streak {bestStreak}
+                    </span>
+                  )}
+                </div>
+
+                {roundComplete && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-bold text-[var(--ink)]"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                      20 questions done! Ready for another round?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={startNewRound}
+                      className="rounded-lg border-2 border-[var(--line)] bg-[var(--cta-bg)] px-3 py-1 text-[11px] font-black uppercase text-[var(--cta-text)]"
+                    >
+                      New round
+                    </button>
+                  </motion.div>
+                )}
+
+                <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-5 gap-2 sm:grid-cols-5 sm:grid-rows-4 sm:gap-3">
+                  {DICE_NUMBERS.map((number) => (
+                    <motion.button
+                      key={number}
+                      type="button"
+                      onClick={() => handleNumberClick(number)}
+                      disabled={isModalOpen}
+                      aria-label={`Open a question for roll ${number}`}
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.96 }}
+                      className="relative flex min-h-0 items-center justify-center rounded-2xl border-[3px] border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] shadow-[var(--tile-shadow)] transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:pointer-events-none sm:border-4"
+                    >
+                      <span className="text-2xl font-black sm:text-4xl">{number}</span>
+                      {isHalloween && (
+                        <span
+                          className="absolute bottom-1.5 h-1.5 w-1.5 rounded-full bg-[var(--accent)] opacity-60 sm:bottom-2"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
+              </main>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isModalOpen && currentQuestion && currentNumber !== null && (
+            <QuestionModal
+              question={currentQuestion}
+              diceNumber={currentNumber}
+              mode={mode}
+              difficulty={difficulty}
+              status={answerStatus}
+              onAnswer={handleAnswer}
+              onClose={closeQuestion}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </MotionConfig>
   );
 }
