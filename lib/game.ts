@@ -30,7 +30,8 @@ export const MODES: { id: ModeId; label: string; description: string }[] = [
   {
     id: 'halloween',
     label: 'Halloween Mode',
-    description: 'Pumpkins, ghosts, movies and a few games. All questions in English.',
+    description:
+      'Pumpkins, ghosts, movies, games and Brazilian folklore. Play with a D20 or run a knockout competition.',
   },
   {
     id: 'classic',

@@ -5,9 +5,9 @@ import './globals.css'; // Global styles
 const fredoka = Fredoka({ subsets: ['latin'], variable: '--font-fredoka' });
 
 export const metadata: Metadata = {
-  title: 'D20 Classroom — Halloween Trivia',
+  title: 'D20 Classroom — Halloween Trivia & Competition',
   description:
-    'A fun classroom true-or-false game with a D20, a classic mixed-topics deck and a spooky Halloween mode with Easy, Medium and Hard questions.',
+    'A fun classroom true-or-false game with a D20, a classic mixed-topics deck and a spooky Halloween mode with Easy, Medium and Hard questions, plus a knockout competition for teachers.',
 };
 
 export const viewport: Viewport = {

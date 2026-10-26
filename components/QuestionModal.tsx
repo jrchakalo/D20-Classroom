@@ -9,10 +9,13 @@ import type { AnswerStatus, DifficultyId, ModeId, Question } from '@/lib/types';
 
 type QuestionModalProps = {
   question: Question;
-  diceNumber: number;
+  diceNumber?: number;
+  studentName?: string;
+  phaseLabel?: string;
   mode: ModeId;
   difficulty: DifficultyId;
   status: AnswerStatus;
+  continueLabel?: string;
   onAnswer: (guess: boolean) => void;
   onClose: () => void;
 };
@@ -20,9 +23,12 @@ type QuestionModalProps = {
 export default function QuestionModal({
   question,
   diceNumber,
+  studentName,
+  phaseLabel,
   mode,
   difficulty,
   status,
+  continueLabel = 'Continue',
   onAnswer,
   onClose,
 }: QuestionModalProps) {
@@ -108,16 +114,29 @@ export default function QuestionModal({
         </button>
 
         <div className="flex flex-wrap items-center gap-2 pr-9 text-[11px] font-bold uppercase tracking-wider sm:text-xs">
-          <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
-            Roll #{diceNumber}
-          </span>
+          {studentName && (
+            <span className="rounded-full border border-[var(--accent)] bg-[var(--surface-2)] px-3 py-1 text-[var(--accent)]">
+              {studentName}
+            </span>
+          )}
+          {diceNumber !== undefined && (
+            <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
+              Roll #{diceNumber}
+            </span>
+          )}
           <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
             {isHalloween ? 'Halloween' : 'Classroom'}
           </span>
-          {isHalloween && (
+          {phaseLabel ? (
             <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--accent)]">
-              {difficultyMeta.label}
+              {phaseLabel}
             </span>
+          ) : (
+            isHalloween && (
+              <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--accent)]">
+                {difficultyMeta.label}
+              </span>
+            )
           )}
         </div>
 
@@ -221,6 +240,15 @@ export default function QuestionModal({
                 </span>
                 .
               </p>
+
+              {question.explanation && (
+                <p className="mt-2 rounded-xl border-2 border-[var(--line-soft)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--muted)] sm:text-base">
+                  <span className="font-black uppercase tracking-wider text-[var(--accent)]">
+                    Did you know?{' '}
+                  </span>
+                  {question.explanation}
+                </p>
+              )}
             </div>
 
             <motion.button
@@ -230,7 +258,7 @@ export default function QuestionModal({
               onClick={onClose}
               className="min-h-[56px] rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[0_6px_0_rgba(0,0,0,0.2)] transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] active:translate-y-1 active:shadow-none"
             >
-              Continue
+              {continueLabel}
             </motion.button>
           </motion.div>
         )}
