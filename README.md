@@ -21,14 +21,14 @@ No modo Halloween, o professor pode escolher entre o **D20 Roll** e a **Competit
 - Cadastre os alunos pelo nome (é possível colar a lista inteira separada por vírgulas ou quebras de linha).
 - Escolha a ordem dos alunos: **em ordem** ou **aleatória** a cada fase.
 - Cada fase faz **uma pergunta por aluno**. Quem acerta avança; quem erra é eliminado.
-- A competição termina quando resta um campeão, quando todos são eliminados ou quando a última fase termina com mais de um sobrevivente (co-campeões).
-- A lista de alunos e as configurações ficam salvas no navegador para a próxima aula.
+- A competição termina quando resta um campeão. Se 2 ou mais alunos chegarem ao fim das fases, rodadas de **morte súbita** continuam até restar apenas um.
+- As configurações ficam salvas no navegador, mas a lista de alunos começa vazia em cada nova sessão.
 
-**Escadas de dificuldade:**
-- **Easy:** Easy Starter → Easy Core → Easy Challenge → Medium Starter → Medium Core.
-- **Medium:** Medium Starter → Medium Core → Medium Challenge → Hard Starter.
-- **Hard:** Hard Starter → Hard Core → Hard Challenge.
-- **Progressive:** 2 ou 3 rodadas em cada dificuldade, começando no Easy e terminando no Hard.
+**Escadas de dificuldade (6 fases cada):**
+- **Easy:** Easy Starter → Easy Core → Easy Challenge → Medium Starter → Medium Core → Medium Challenge.
+- **Medium:** Medium Starter → Medium Core → Medium Challenge → Hard Starter → Hard Core → Hard Challenge.
+- **Hard:** Hard Starter → Hard Core → Hard Challenge → Hard Expert → Hard Final → Hard Championship.
+- **Progressive:** 2 ou 3 rodadas em cada dificuldade, começando no Easy e terminando no Hard. Continua com 6 ou 9 fases.
 
 O baralho de Halloween foi revisado para crianças e pré-adolescentes brasileiros: as perguntas de ano de lançamento de filmes/livros foram removidas, o contexto foi ajustado e foram incluídas referências ao folclore e à cultura do Brasil, como Saci, Curupira, Iara, Boitatá, Cuca, mula-sem-cabeça, boto e Dia do Saci.
 

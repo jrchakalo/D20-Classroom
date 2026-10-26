@@ -470,7 +470,12 @@ export default function CompetitionSetup({
               </li>
               <li className="flex gap-2">
                 <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                The last surviving student or students win.
+                The last surviving student wins.
+              </li>
+              <li className="flex gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+                If 2 or more students remain after the final phase, sudden-death tiebreak rounds
+                decide the champion.
               </li>
             </ul>
           </section>

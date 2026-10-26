@@ -25,27 +25,36 @@ const DIFFICULTY_LABELS: Record<DifficultyId, string> = {
   hard: 'Hard',
 };
 
+const HARD_PHASES: Array<{ tier: QuestionTier; label: string; shortLabel: string }> = [
+  { tier: 1, label: 'Starter', shortLabel: 'Hard starter' },
+  { tier: 2, label: 'Core', shortLabel: 'Hard core' },
+  { tier: 3, label: 'Challenge', shortLabel: 'Hard challenge' },
+  { tier: 3, label: 'Expert', shortLabel: 'Hard expert' },
+  { tier: 3, label: 'Final', shortLabel: 'Hard final' },
+  { tier: 3, label: 'Championship', shortLabel: 'Hard championship' },
+];
+
 export const COMPETITION_LEVELS: CompetitionLevelMeta[] = [
   {
     id: 'easy',
     label: 'Easy',
     tagline: 'Gentle start',
-    description: 'Easiest questions first, then a small taste of medium.',
-    phasesLabel: '5 phases',
+    description: 'Three easy rounds, then three medium rounds.',
+    phasesLabel: '6 phases',
   },
   {
     id: 'medium',
     label: 'Medium',
     tagline: 'Balanced climb',
-    description: 'Medium questions from starter to challenge, then one hard round.',
-    phasesLabel: '4 phases',
+    description: 'Three medium rounds, then three hard rounds.',
+    phasesLabel: '6 phases',
   },
   {
     id: 'hard',
     label: 'Hard',
     tagline: 'No mercy',
-    description: 'Only hard questions, from starter to the toughest tier.',
-    phasesLabel: '3 phases',
+    description: 'Six hard rounds, from starter to championship.',
+    phasesLabel: '6 phases',
   },
   {
     id: 'progressive',
@@ -93,9 +102,9 @@ function standardPhase(difficulty: DifficultyId, tier: QuestionTier): Competitio
 /**
  * Builds the phase ladder for a competition.
  *
- * Easy:        easy 1 → easy 2 → easy 3 → medium 1 → medium 2
- * Medium:      medium 1 → medium 2 → medium 3 → hard 1
- * Hard:        hard 1 → hard 2 → hard 3
+ * Easy:        easy 1 → easy 2 → easy 3 → medium 1 → medium 2 → medium 3
+ * Medium:      medium 1 → medium 2 → medium 3 → hard 1 → hard 2 → hard 3
+ * Hard:        six hard rounds, from starter to championship
  * Progressive: 2 or 3 rounds in each difficulty (easy → medium → hard)
  */
 export function buildCompetitionPhases(
@@ -112,6 +121,7 @@ export function buildCompetitionPhases(
         standardPhase('easy', 3),
         standardPhase('medium', 1),
         standardPhase('medium', 2),
+        standardPhase('medium', 3),
       ];
       break;
     case 'medium':
@@ -120,14 +130,14 @@ export function buildCompetitionPhases(
         standardPhase('medium', 2),
         standardPhase('medium', 3),
         standardPhase('hard', 1),
-      ];
-      break;
-    case 'hard':
-      phases = [
-        standardPhase('hard', 1),
         standardPhase('hard', 2),
         standardPhase('hard', 3),
       ];
+      break;
+    case 'hard':
+      phases = HARD_PHASES.map(({ tier, label, shortLabel }) =>
+        makePhase('hard', tier, `Hard · ${label}`, shortLabel)
+      );
       break;
     case 'progressive':
       phases = DIFFICULTY_ORDER.flatMap((difficulty) =>
@@ -146,6 +156,23 @@ export function buildCompetitionPhases(
   }
 
   return withIndexes(phases);
+}
+
+/**
+ * Builds a sudden-death round for the students still tied after the final
+ * regular phase. The tiebreaker uses the final phase's difficulty and tier.
+ */
+export function buildTiebreakPhase(
+  finalPhase: CompetitionPhase,
+  round: number
+): CompetitionPhase {
+  return makePhase(
+    finalPhase.difficulty,
+    finalPhase.tier,
+    `Tiebreaker · Round ${round}`,
+    `Tiebreak ${round}`,
+    finalPhase.index
+  );
 }
 
 export function getCompetitionLevelMeta(level: CompetitionLevelId): CompetitionLevelMeta {

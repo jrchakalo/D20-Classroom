@@ -23,6 +23,7 @@ import QuestionModal from './QuestionModal';
 import VolumeControl from './VolumeControl';
 import {
   buildCompetitionPhases,
+  buildTiebreakPhase,
   drawPhaseQuestions,
   getCompetitionLevelMeta,
   orderStudents,
@@ -99,6 +100,7 @@ export default function CompetitionGame({
   const LevelIcon = LEVEL_ICONS[config.level];
 
   const [phaseIndex, setPhaseIndex] = useState(0);
+  const [tiebreakRound, setTiebreakRound] = useState(0);
   const [activeStudents, setActiveStudents] = useState<Student[]>(students);
   const [phaseOrder, setPhaseOrder] = useState<Student[]>([]);
   const [phaseQuestions, setPhaseQuestions] = useState<Record<string, Question>>({});
@@ -116,7 +118,13 @@ export default function CompetitionGame({
   const celebratedRef = useRef(false);
   const noChampionToneRef = useRef(false);
 
-  const currentPhase = phases[phaseIndex] ?? phases[0];
+  const isTiebreak = tiebreakRound > 0;
+  const lastPhase = phases[phases.length - 1];
+  const tiebreakPhase = useMemo(
+    () => (isTiebreak ? buildTiebreakPhase(lastPhase, tiebreakRound) : null),
+    [isTiebreak, lastPhase, tiebreakRound]
+  );
+  const currentPhase = tiebreakPhase ?? phases[phaseIndex] ?? phases[0];
 
   const startPhase = useCallback(
     (phase: CompetitionPhase, roster: Student[]) => {
@@ -170,9 +178,13 @@ export default function CompetitionGame({
   );
 
   const isLastPhase = phaseIndex >= phases.length - 1;
-  const isComplete = phaseComplete && (phaseSurvivors.length <= 1 || isLastPhase);
+  const isComplete = phaseComplete && phaseSurvivors.length <= 1;
   const noChampion = phaseComplete && phaseSurvivors.length === 0;
   const champions = isComplete ? phaseSurvivors : [];
+  const tiebreakNeeded =
+    phaseComplete && !isTiebreak && isLastPhase && phaseSurvivors.length > 1;
+  const tiebreakStillTied =
+    phaseComplete && isTiebreak && phaseSurvivors.length > 1;
 
   useEffect(() => {
     if (!isComplete || champions.length === 0 || celebratedRef.current) return;
@@ -252,15 +264,33 @@ export default function CompetitionGame({
   const nextPhase = useCallback(() => {
     if (!phaseComplete || isComplete) return;
 
-    const nextIndex = phaseIndex + 1;
-    if (nextIndex >= phases.length) return;
-
     const survivors = phaseSurvivors;
-    setPhaseIndex(nextIndex);
-    setActiveStudents(survivors);
-    startPhase(phases[nextIndex], survivors);
+    const nextRegularIndex = phaseIndex + 1;
+
+    if (!isTiebreak && nextRegularIndex < phases.length) {
+      setPhaseIndex(nextRegularIndex);
+      setActiveStudents(survivors);
+      startPhase(phases[nextRegularIndex], survivors);
+    } else {
+      const nextRound = tiebreakRound + 1;
+      setTiebreakRound(nextRound);
+      setActiveStudents(survivors);
+      startPhase(buildTiebreakPhase(lastPhase, nextRound), survivors);
+    }
+
     playTone(330, 'triangle', 0.1, 0.05);
-  }, [isComplete, phaseComplete, phaseIndex, phaseSurvivors, phases, playTone, startPhase]);
+  }, [
+    isComplete,
+    isTiebreak,
+    lastPhase,
+    phaseComplete,
+    phaseIndex,
+    phaseSurvivors,
+    phases,
+    playTone,
+    startPhase,
+    tiebreakRound,
+  ]);
 
   const handleRestart = () => {
     if (window.confirm('Restart the competition? All progress will be lost.')) {
@@ -274,6 +304,28 @@ export default function CompetitionGame({
     phaseOrder.length > 0 ? (progress / phaseOrder.length) * 100 : 0;
   const continueLabel =
     phaseResults.length >= phaseOrder.length ? 'See phase results' : 'Next student';
+  const phaseSummaryEyebrow = tiebreakNeeded
+    ? 'Final phase complete'
+    : tiebreakStillTied
+      ? `Tiebreak round ${tiebreakRound} complete`
+      : `Phase ${phaseIndex + 1} complete`;
+  const phaseSummaryTitle = tiebreakNeeded
+    ? 'Tiebreaker needed'
+    : tiebreakStillTied
+      ? 'Still tied'
+      : `${phaseSurvivors.length} advanced`;
+  const phaseSummaryText = tiebreakNeeded
+    ? `${phaseSurvivors.length} students survived the final phase. Start sudden death: one question each until one champion remains.`
+    : tiebreakStillTied
+      ? `${phaseSurvivors.length} students are still tied after round ${tiebreakRound}. Another sudden-death round will decide it.`
+      : `${eliminated.length} student${eliminated.length === 1 ? '' : 's'} eliminated in this phase.`;
+  const survivorsLabel =
+    tiebreakNeeded || tiebreakStillTied ? 'Still in contention' : 'Advanced';
+  const nextActionLabel = tiebreakNeeded
+    ? 'Start tiebreaker'
+    : tiebreakStillTied
+      ? `Next tiebreak: Round ${tiebreakRound + 1}`
+      : `Next phase: ${phases[phaseIndex + 1]?.shortLabel}`;
 
   return (
     <>
@@ -304,7 +356,11 @@ export default function CompetitionGame({
                 Halloween Competition
               </h1>
               <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
-                {levelMeta.label} · Phase {phaseIndex + 1}/{phases.length} · {currentPhase?.label}
+                {levelMeta.label} ·{' '}
+                {isTiebreak
+                  ? `Tiebreaker ${tiebreakRound}`
+                  : `Phase ${phaseIndex + 1}/${phases.length}`}{' '}
+                · {currentPhase?.label}
               </p>
             </div>
           </div>
@@ -420,7 +476,7 @@ export default function CompetitionGame({
                       <Crown className="h-10 w-10" aria-hidden="true" />
                     </span>
                     <p className="mt-4 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
-                      {champions.length > 1 ? 'Co-champions!' : 'Champion!'}
+                      Champion!
                     </p>
                     <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                       {champions.map((champion) => (
@@ -433,7 +489,10 @@ export default function CompetitionGame({
                       ))}
                     </div>
                     <p className="mt-4 text-sm font-semibold leading-relaxed text-[var(--muted)] sm:text-base">
-                      Survived {phaseIndex + 1} of {phases.length} phases with{' '}
+                      {isTiebreak
+                        ? `Won after ${tiebreakRound} tiebreak round${tiebreakRound === 1 ? '' : 's'}`
+                        : `Survived ${phaseIndex + 1} of ${phases.length} phases`}{' '}
+                      with{' '}
                       <span className="font-black text-[var(--ink)]">
                         {totalCorrect}/{totalAnswers}
                       </span>{' '}
@@ -478,14 +537,13 @@ export default function CompetitionGame({
                     </span>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
-                        Phase {phaseIndex + 1} complete
+                        {phaseSummaryEyebrow}
                       </p>
                       <h2 className="mt-1 text-2xl font-black uppercase leading-none text-[var(--ink)] sm:text-4xl">
-                        {phaseSurvivors.length} advanced
+                        {phaseSummaryTitle}
                       </h2>
                       <p className="mt-2 text-sm font-semibold leading-relaxed text-[var(--muted)]">
-                        {eliminated.length} student{eliminated.length === 1 ? '' : 's'} eliminated
-                        in this phase.
+                        {phaseSummaryText}
                       </p>
                     </div>
                   </div>
@@ -493,7 +551,7 @@ export default function CompetitionGame({
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border-2 border-[var(--accent-2)]/50 bg-[var(--accent-2)]/10 p-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--accent-2)]">
-                        Advanced
+                        {survivorsLabel}
                       </p>
                       <ul className="mt-2 space-y-1.5">
                         {phaseSurvivors.length === 0 ? (
@@ -543,7 +601,7 @@ export default function CompetitionGame({
                     onClick={nextPhase}
                     className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-sm font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] sm:text-base"
                   >
-                    Next phase: {phases[phaseIndex + 1]?.shortLabel}
+                    {nextActionLabel}
                     <ChevronRight className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </section>

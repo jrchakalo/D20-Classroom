@@ -89,28 +89,14 @@ const MODE_ICONS = {
 type PlayStyle = 'd20' | 'competition';
 type Screen = 'menu' | 'playing' | 'competition-setup' | 'competition';
 
-function isStudent(value: unknown): value is Student {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as { id?: unknown; name?: unknown };
-  return typeof candidate.id === 'string' && typeof candidate.name === 'string';
-}
-
-function readCompetitionSetup(): { students: Student[]; config: CompetitionConfig } | null {
+function readCompetitionConfig(): CompetitionConfig | null {
   if (typeof window === 'undefined') return null;
 
   try {
     const raw = window.localStorage.getItem(COMPETITION_STORAGE_KEY);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as { students?: unknown; config?: unknown };
-    const students = Array.isArray(parsed.students)
-      ? parsed.students
-          .filter(isStudent)
-          .map((student) => ({ id: student.id, name: student.name.trim() }))
-          .filter((student) => student.name.length > 0)
-          .slice(0, 50)
-      : [];
-
+    const parsed = JSON.parse(raw) as { config?: unknown };
     const configValue =
       parsed.config && typeof parsed.config === 'object'
         ? (parsed.config as Partial<CompetitionConfig>)
@@ -123,7 +109,7 @@ function readCompetitionSetup(): { students: Student[]; config: CompetitionConfi
       configValue.progressiveRounds === 3 ? 3 : 2;
     const order = configValue.order === 'random' ? 'random' : 'sequential';
 
-    return { students, config: { level, progressiveRounds, order } };
+    return { level, progressiveRounds, order };
   } catch {
     return null;
   }
@@ -134,15 +120,11 @@ export default function GamePage() {
   const [mode, setMode] = useState<ModeId>('halloween');
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
   const [playStyle, setPlayStyle] = useState<PlayStyle>('d20');
-  // Read once, lazily, so the saved roster is available on the first client render
-  // without a state update inside an effect.
-  const [savedCompetitionSetup] = useState(readCompetitionSetup);
+  // Only the competition settings persist; every new session starts with an empty roster.
   const [competitionConfig, setCompetitionConfig] = useState<CompetitionConfig>(
-    () => savedCompetitionSetup?.config ?? DEFAULT_COMPETITION_CONFIG
+    () => readCompetitionConfig() ?? DEFAULT_COMPETITION_CONFIG
   );
-  const [competitionStudents, setCompetitionStudents] = useState<Student[]>(
-    () => savedCompetitionSetup?.students ?? []
-  );
+  const [competitionStudents, setCompetitionStudents] = useState<Student[]>([]);
   const [competitionRun, setCompetitionRun] = useState(0);
 
   const [queue, setQueue] = useState<Question[]>(() => shuffle(getDeck('halloween', 'medium')));
@@ -281,12 +263,12 @@ export default function GamePage() {
     try {
       window.localStorage.setItem(
         COMPETITION_STORAGE_KEY,
-        JSON.stringify({ students: competitionStudents, config: competitionConfig })
+        JSON.stringify({ config: competitionConfig })
       );
     } catch {
       // Storage can be unavailable in private or restricted browsing modes.
     }
-  }, [competitionConfig, competitionStudents]);
+  }, [competitionConfig]);
 
   useEffect(() => {
     return () => {
@@ -858,10 +840,6 @@ export default function GamePage() {
                       <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
                         {competitionLastPhase?.shortLabel}
                       </span>
-                      <span className="ml-auto normal-case tracking-normal">
-                        {competitionStudents.length} student
-                        {competitionStudents.length === 1 ? '' : 's'} saved
-                      </span>
                     </div>
                   </motion.section>
                 )}
@@ -885,8 +863,6 @@ export default function GamePage() {
                     <div className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
                       <p>Register your students and choose the level on the next screen.</p>
                       <p>
-                        {competitionStudents.length} student
-                        {competitionStudents.length === 1 ? '' : 's'} saved ·{' '}
                         {competitionPhases.length} phases ·{' '}
                         {competitionConfig.order === 'random' ? 'Random order' : 'In order'}.
                       </p>
