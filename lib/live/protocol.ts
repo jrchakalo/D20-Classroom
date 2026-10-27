@@ -1,0 +1,95 @@
+import type { DifficultyId } from '../types';
+
+/**
+ * Message protocol between the host device (teacher) and player devices for
+ * the Halloween Live room mode, transported by a Supabase Realtime channel.
+ *
+ * The host is the single authority: it picks the run of questions, keeps the
+ * timers, computes the scores and pushes every game event. Players only send
+ * their answers and everything else they receive.
+ */
+
+/** Channel namespace. The room code is appended: `d20-live:AB3D9K`. */
+export const CHANNEL_PREFIX = 'd20-live';
+
+/** Player cap per room. Supabase Realtime handles presence up to 100–200 clients. */
+export const MAX_PLAYERS = 60;
+
+export type LiveGameConfig = {
+  difficulty: DifficultyId;
+  questionCount: 8 | 12 | 16;
+  secondsPerQuestion: 15 | 20 | 30;
+};
+
+export type LivePlayerRef = {
+  id: string;
+  name: string;
+};
+
+export type LiveScoreRow = {
+  playerId: string;
+  name: string;
+  total: number;
+  streak: number;
+  /** Points earned on the latest revealed question. */
+  gained: number;
+  correct: boolean;
+};
+
+/** Host → players: config snapshot for late joiners. */
+export type LobbyMessage = {
+  kind: 'lobby';
+  code: string;
+  config: LiveGameConfig;
+};
+
+/** Host → players: a question is live right now. */
+export type QuestionStartMessage = {
+  kind: 'question';
+  seq: number;
+  questionId: string;
+  text: string;
+  options: string[];
+  timeoutMs: number;
+  startedAt: number;
+};
+
+/** Host → players: question is over, show the reveal. */
+export type RevealMessage = {
+  kind: 'reveal';
+  seq: number;
+  questionId: string;
+  text: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  counts: number[];
+  leaderboard: LiveScoreRow[];
+};
+
+/** Host → players: the run is over. */
+export type GameOverMessage = {
+  kind: 'gameover';
+  leaderboard: LiveScoreRow[];
+};
+
+export type HostToPlayerMessage =
+  | LobbyMessage
+  | QuestionStartMessage
+  | RevealMessage
+  | GameOverMessage;
+
+/** Player → host: one locked answer. */
+export type AnswerMessage = {
+  kind: 'answer';
+  playerId: string;
+  name: string;
+  seq: number;
+  optionIndex: number;
+};
+
+export type PlayerToHostMessage = AnswerMessage;
+
+export function channelNameFor(code: string): string {
+  return `${CHANNEL_PREFIX}:${code}`;
+}

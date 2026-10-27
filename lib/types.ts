@@ -15,6 +15,24 @@ export type Question = {
   explanation?: string;
 };
 
+export type LiveOptionIndex = 0 | 1 | 2 | 3;
+
+/**
+ * Multiple-choice question used by the Halloween Live room mode.
+ * Four options, exactly one of them correct. The canonical `correctIndex`
+ * is shuffled at runtime so every game shows options in a fresh order.
+ */
+export type LiveQuestion = {
+  id: string;
+  /** 1 = gentlest questions in the difficulty, 3 = the hardest ones. */
+  tier: QuestionTier;
+  text: string;
+  options: [string, string, string, string];
+  correctIndex: LiveOptionIndex;
+  /** Short, kid-friendly fact shown on the reveal screen. */
+  explanation: string;
+};
+
 export type AnswerStatus = 'correct' | 'incorrect' | null;
 
 export type DifficultyMeta = {
