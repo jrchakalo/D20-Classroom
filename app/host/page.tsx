@@ -233,7 +233,7 @@ export default function HostPage() {
         repliesRef.current = [...repliesRef.current, entry];
         setReplies(repliesRef.current);
 
-        // Everyone has voted: jump to the reveal right away, like Kahoot.
+        // Everyone has voted: jump to the reveal right away for a lively pace.
         // Guarded so a duplicated reply event (double channel echo) or a
         // late straggler reply can't fire the reveal twice for the same question.
         if (

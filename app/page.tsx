@@ -15,6 +15,7 @@ import {
   Moon,
   RotateCcw,
   Skull,
+  Smartphone,
   Sparkles,
   Trophy,
   Wifi,
@@ -680,7 +681,7 @@ export default function GamePage() {
                       <span>
                         <span className="block text-lg font-black text-[var(--ink)]">Halloween Live</span>
                         <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
-                          Kahoot-style room: students join with a code or QR and answer on their own phones.
+                          Live room: students join with a code or QR and answer on their own phones.
                         </span>
                       </span>
                     </span>
@@ -688,6 +689,30 @@ export default function GamePage() {
                   </motion.a>
                 )}
               </AnimatePresence>
+
+              {/* Students: direct shortcut to type the room code on a phone. */}
+              <motion.a
+                key="join-room"
+                href="/join"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--accent)] sm:p-5"
+              >
+                <span className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                    <Smartphone className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <span className="block text-lg font-black text-[var(--ink)]">Join a live room</span>
+                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
+                      Student? Open the join page, type the room code shown on the projector and answer on your phone.
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+              </motion.a>
 
               <AnimatePresence initial={false} mode="wait">
                 {isHalloween && effectivePlayStyle === 'd20' && (

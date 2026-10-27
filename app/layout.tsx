@@ -7,7 +7,7 @@ const fredoka = Fredoka({ subsets: ['latin'], variable: '--font-fredoka' });
 export const metadata: Metadata = {
   title: 'D20 Classroom — Halloween Trivia, Competition & Live',
   description:
-    'A fun classroom true-or-false game with a D20, a classic mixed-topics deck, a spooky Halloween mode with Easy, Medium and Hard questions, a knockout competition and a Kahoot-style live room with QR codes for phones.',
+    'A fun classroom true-or-false game with a D20, a classic mixed-topics deck, a spooky Halloween mode with Easy, Medium and Hard questions, a knockout competition and a live multiplayer room with QR codes for phones.',
 };
 
 export const viewport: Viewport = {

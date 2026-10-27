@@ -10,7 +10,7 @@ import type { LiveScoreRow } from './protocol';
 
 /** Unambiguous alphabet (no I, O, 0, 1, L). */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-/** Households type three letters/digits on a phone keyboard. 5 is Kahoot-like. */
+/** Households type three letters/digits on a phone keyboard. 5 is game-show-like. */
 export const CODE_LENGTH = 5;
 
 export function randomRoomCode(): string {
@@ -93,14 +93,14 @@ export function formatPoints(points: number): string {
   return `+${points.toLocaleString('pt-BR')}`;
 }
 
-/** Sorts the leaderboard like a Kahoot board: score first, name second. */
+/** Sorts the leaderboard like a game-show board: score first, name second. */
 export function sortLeaderboard(rows: LiveScoreRow[]): LiveScoreRow[] {
   return [...rows].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 }
 
 /**
- * Answer choices shown to the players: shape + color, exactly like Kahoot,
- * so reading the projector correlates 1:1 with the phone buttons.
+ * Answer choices shown to the players: shape + color, matching the projector,
+ * so reading the screen correlates 1:1 with the phone buttons.
  */
 export const ANSWER_BUTTONS = [
   { shape: '▲', bg: '#e21b3c' },

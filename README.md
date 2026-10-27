@@ -30,13 +30,13 @@ No modo Halloween, o professor pode escolher entre o **D20 Roll** e a **Competit
 - **Hard:** Hard Starter → Hard Core → Hard Challenge → Hard Expert → Hard Final → Hard Championship.
 - **Progressive:** 2 ou 3 rodadas em cada dificuldade, começando no Easy e terminando no Hard. Continua com 6 ou 9 fases.
 
-### Halloween Live (modo Kahoot)
-No modo Halloween, além de D20 e Competition, o botão **Halloween Live** abre uma sala multiplayer no estilo Kahoot:
+### Halloween Live (sala multiplayer)
+No modo Halloween, além de D20 e Competition, o botão **Halloween Live** abre uma sala multiplayer ao vivo (estilo quiz show):
 
 - **/host** (tela do professor): cria uma sala com código de 5 caracteres, mostra um **QR code** para os alunos, projeta a pergunta em tela cheia com timer e revela as respostas com barra por cor e placar ao vivo.
 - **/join** (tela do aluno): entrada com código ou QR; responde com 4 botões grandes coloridos (▲ vermelho, ◆ azul, ● amarelo, ■ verde) e vê o feedback em cada revelação.
 - **Gama de perguntas novo:** 180 múltipla escolha (60 por dificuldade, 20 por tier), mesmo estilo do baralho Halloween; um único deck por rodada.
-- **Pontuação estilo Kahoot:** acerto vale de 100 até 1.000 pontos conforme a velocidade da resposta.
+- **Pontuação por velocidade:** acerto vale de 100 até 1.000 pontos conforme a velocidade da resposta.
 - **Enviro de Realtime:** os eventos trafegam por canais broadcast (sem database). O host é a autoridade: escolhe as perguntas, calcula a pontuação e emite cada evento de jogo.
 - Fase `lobby → question → reveal → leaderboard→/gameover`, com rejeição automática de respostas repetidas ou fora de fase.
 
@@ -75,7 +75,7 @@ O baralho de Halloween foi revisado para crianças e pré-adolescentes brasileir
 
 ## Variáveis de ambiente
 - **Jogo local (D20 / Competition):** nenhuma variável é necessária — os baralhos ficam em `lib/classic-questions.ts` e `lib/halloween-questions.ts`.
-- **Halloween Live (sala Kahoot):** `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (copie de `.env.example`); instruções completas acima.
+- **Halloween Live (sala multiplayer):** `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (copie de `.env.example`); instruções completas acima.
 
 ## Como rodar localmente
 1. Instale as dependências: `npm install` ou `yarn install`
