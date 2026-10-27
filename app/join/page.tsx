@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Gamepad2, Hourglass, Wifi } from 'lucide-react';
+import { Gamepad2, Hourglass, RotateCcw, Wifi } from 'lucide-react';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
 import {
   channelNameFor,
@@ -89,8 +89,42 @@ export default function JoinPage() {
 
   useEffect(() => cleanup, [cleanup]);
 
+  /* Leave the finished game and go back to the join screen (new game). */
+  const leaveRoom = useCallback(() => {
+    cleanup();
+    seqRef.current = -1;
+    chosenSeqRef.current = -1;
+    setQuestion(null);
+    setReveal(null);
+    setGameover(null);
+    setChosenIndex(null);
+    setPhase('entry');
+  }, [cleanup]);
+
+  /* Auto-return to the join screen one minute after the results. */
+  const [returnCountdown, setReturnCountdown] = useState(60);
+  useEffect(() => {
+    if (phase !== 'over') return;
+    setReturnCountdown(60);
+    const interval = window.setInterval(() => {
+      setReturnCountdown((current) => Math.max(current - 1, 0));
+    }, 1000);
+    const timeout = window.setTimeout(leaveRoom, 60_000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [phase, leaveRoom]);
+
   const handleMessage = useCallback((payload: HostToPlayerMessage) => {
     if (payload.kind === 'lobby') {
+      // A new round starts: forget the previous game's sequence.
+      seqRef.current = -1;
+      chosenSeqRef.current = -1;
+      setQuestion(null);
+      setReveal(null);
+      setGameover(null);
+      setChosenIndex(null);
       setPhase('lobby');
       return;
     }
@@ -252,7 +286,7 @@ export default function JoinPage() {
               <input
                 value={nameInput}
                 onChange={(event) => setNameInput(event.target.value.slice(0, 16))}
-                placeholder="Ghost ðŸ‘»"
+                placeholder="Ghost 👻"
                 autoComplete="off"
                 maxLength={16}
                 className="mt-1 w-full rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3 text-lg font-black text-[var(--ink)] outline-none"
@@ -280,7 +314,7 @@ export default function JoinPage() {
               className="m-auto flex flex-col items-center gap-3 text-[var(--muted)]"
             >
               <Wifi className="h-8 w-8 animate-pulse text-[var(--accent)]" aria-hidden="true" />
-              <p className="text-sm font-black uppercase tracking-wide">Connectingâ€¦</p>
+              <p className="text-sm font-black uppercase tracking-wide">Connecting…</p>
             </motion.section>
           )}
 
@@ -297,7 +331,7 @@ export default function JoinPage() {
                 You're in, {playerRef.current?.name}!
               </h1>
               <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
-                Watch the teacher's screen. When the question appears, tap your answer here â€” faster answers score
+                Watch the teacher's screen. When the question appears, tap your answer here — faster answers score
                 more points.
               </p>
             </motion.section>
@@ -309,7 +343,7 @@ export default function JoinPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="mt-4 flex flex-1 flex-col"
+              className="flex flex-1 flex-col py-4"
             >
               <div className="rounded-2xl bg-white/90 p-3">
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
@@ -320,9 +354,8 @@ export default function JoinPage() {
                 </div>
               </div>
 
-              <h1 className="mt-4 text-center text-xl font-black leading-snug text-[var(--ink)]">{question.text}</h1>
-
-              <div className="mt-4 grid flex-1 content-start gap-3">
+              {/* Only the answer tiles show here: the question lives on the projector. */}
+              <div className="mt-4 grid flex-1 grid-cols-2 content-center gap-3">
                 {question.options.map((option, index) => {
                   const style = ANSWER_BUTTONS[index];
                   const locked = chosenSeqRef.current === seqRef.current;
@@ -333,18 +366,18 @@ export default function JoinPage() {
                     <motion.button
                       key={index}
                       type="button"
-                      whileTap={disabled ? undefined : { scale: 0.97 }}
+                      whileTap={disabled ? undefined : { scale: 0.95 }}
                       disabled={disabled}
                       onClick={() => answer(index)}
-                      className={`flex min-h-16 items-center justify-center gap-3 rounded-2xl px-4 py-4 text-lg font-black text-white shadow-lg transition-opacity ${
+                      className={`flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl px-2 py-3 text-center text-base font-black text-white shadow-xl transition-opacity sm:text-lg ${
                         locked && !chosen ? 'opacity-40' : ''
                       } ${chosen ? 'ring-4 ring-white/80' : ''}`}
                       style={{ backgroundColor: style.bg }}
                     >
-                      <span className="text-2xl" aria-hidden="true">
+                      <span className="text-4xl" aria-hidden="true">
                         {style.shape}
                       </span>
-                      {option}
+                      <span className="leading-tight">{option}</span>
                     </motion.button>
                   );
                 })}
@@ -352,7 +385,7 @@ export default function JoinPage() {
 
               {phase === 'answered' ? (
                 <p className="mt-4 text-center text-sm font-black uppercase tracking-wide text-emerald-400">
-                  Locked in! Waiting for the revealâ€¦
+                  Locked in! Waiting for the reveal…
                 </p>
               ) : null}
             </motion.section>
@@ -428,7 +461,7 @@ export default function JoinPage() {
               exit={{ opacity: 0, y: -8 }}
               className="m-auto w-full rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center sm:p-8"
             >
-              <p className="text-lg font-black text-[var(--accent)]">ðŸ¦‡ That's a wrap!</p>
+              <p className="text-lg font-black text-[var(--accent)]">🦇 That's a wrap!</p>
               {(() => {
                 const leaderboard = gameover?.leaderboard ?? [];
                 const index = leaderboard.findIndex((r) => r.playerId === playerRef.current?.id);
@@ -449,11 +482,23 @@ export default function JoinPage() {
                       {row.total.toLocaleString('pt-BR')} points
                     </h1>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                      Place {index + 1} of {leaderboard.length} â€” check the podium on the teacher's screen!
+                      Place {index + 1} of {leaderboard.length} — check the podium on the teacher's screen!
                     </p>
                   </>
                 );
               })()}
+
+              <button
+                type="button"
+                onClick={leaveRoom}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
+              >
+                <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                Back to the join screen
+              </button>
+              <p className="mt-3 text-xs font-semibold text-[var(--muted)]">
+                Going back automatically in {returnCountdown} s
+              </p>
             </motion.section>
           )}
       </div>

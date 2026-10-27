@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft,
@@ -171,7 +171,11 @@ export default function HostPage() {
   const timeoutRef = useRef<number | null>(null);
   const phaseRef = useRef<Phase>('setup');
   const lastHostMessageRef = useRef<HostToPlayerMessage | null>(null);
+  const playerCountRef = useRef(0);
+  const endQuestionRef = useRef<((seqIndex: number) => void) | null>(null);
+  const [podiumStep, setPodiumStep] = useState(0);
   phaseRef.current = phase;
+  playerCountRef.current = players.length;
 
   const broadcast = useCallback((payload: HostToPlayerMessage) => {
     lastHostMessageRef.current = payload;
@@ -223,6 +227,15 @@ export default function HostPage() {
         };
         repliesRef.current = [...repliesRef.current, entry];
         setReplies(repliesRef.current);
+
+        // Everyone has voted: jump to the reveal right away, like Kahoot.
+        if (
+          playerCountRef.current > 0 &&
+          repliesRef.current.length >= playerCountRef.current
+        ) {
+          if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+          endQuestionRef.current?.(answer.seq);
+        }
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState() as Record<string, { name?: string }[]>;
@@ -344,6 +357,7 @@ export default function HostPage() {
     },
     [broadcast, difficulty, players, secondsPerQuestion]
   );
+  endQuestionRef.current = endQuestion;
 
   const askQuestion = useCallback(
     (seqIndex: number) => {
@@ -390,6 +404,14 @@ export default function HostPage() {
     askQuestion(0);
   }, [askQuestion, difficulty, questionCount]);
 
+  /* The question is read on the projector: enter fullscreen as the teacher hits play. */
+  const enterFullscreen = useCallback(() => {
+    if (typeof document === 'undefined' || document.fullscreenElement) return;
+    void document.documentElement.requestFullscreen?.().catch(() => {
+      // Browsers can refuse (permissions/iframe); the game still runs windowed.
+    });
+  }, []);
+
   const finishGame = useCallback(() => {
     const rows: LiveScoreRow[] = sortLeaderboard(
       Object.entries(scoresRef.current).map(([playerId, entry]) => ({
@@ -432,6 +454,31 @@ export default function HostPage() {
       config: { difficulty, questionCount, secondsPerQuestion },
     } satisfies HostToPlayerMessage);
   }, [phase, players, broadcast, code, difficulty, questionCount, secondsPerQuestion]);
+
+  /* Final standings, plus the staggered podium reveal (3rd → 2nd → 1st). */
+  const finalRows = useMemo(
+    () =>
+      sortLeaderboard(
+        Object.entries(scores).map(([playerId, entry]) => ({
+          playerId,
+          name: entry.name,
+          total: entry.total,
+          streak: entry.streak,
+          gained: 0,
+          correct: false,
+        })),
+      ),
+    [scores],
+  );
+
+  useEffect(() => {
+    if (phase !== 'over') return;
+    setPodiumStep(0);
+    const timers = [1, 2, 3].map((step, order) =>
+      window.setTimeout(() => setPodiumStep((current) => Math.max(current, step)), 1000 + order * 1400),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [phase]);
 
   /* ------------------------------------------------------------------ */
   /* Render                                                              */
@@ -485,7 +532,7 @@ export default function HostPage() {
             Menu
           </a>
           <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-            Halloween Live Â· Host
+            Halloween Live · Host
           </span>
         </div>
 
@@ -591,7 +638,7 @@ export default function HostPage() {
                 onClick={() => void openRoom()}
                 className="mt-7 w-full rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-60 sm:w-auto sm:min-w-64"
               >
-                {status === 'connecting' ? 'Opening roomâ€¦' : 'Open room'}
+                {status === 'connecting' ? 'Opening room…' : 'Open room'}
               </button>
 
               {savedSession && savedSession.code !== code ? (
@@ -642,7 +689,10 @@ export default function HostPage() {
                   <button
                     type="button"
                     disabled={players.length === 0}
-                    onClick={startGame}
+                    onClick={() => {
+                      enterFullscreen();
+                      startGame();
+                    }}
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-50 sm:w-auto sm:min-w-56"
                   >
                     <Play className="h-5 w-5" aria-hidden="true" />
@@ -665,7 +715,7 @@ export default function HostPage() {
                 <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Lobby</h2>
                 {players.length === 0 ? (
                   <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
-                    Waiting for the first playerâ€¦ show the QR code to the class.
+                    Waiting for the first player… show the QR code to the class.
                   </p>
                 ) : (
                   <ul className="mt-3 flex flex-wrap gap-2">
@@ -712,26 +762,26 @@ export default function HostPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mx-auto mt-4 grid max-w-3xl grid-cols-2 gap-3 sm:gap-4">
                 {question.options.map((option, index) => {
                   const style = ANSWER_BUTTONS[index];
                   return (
                     <div
                       key={index}
-                      className="flex items-center gap-2 rounded-2xl p-4 text-white"
+                      className="flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl p-4 text-center text-white shadow-[var(--tile-shadow)] sm:gap-3"
                       style={{ backgroundColor: style.bg }}
                     >
-                      <span className="text-2xl" aria-hidden="true">
+                      <span className="text-5xl sm:text-6xl" aria-hidden="true">
                         {style.shape}
                       </span>
-                      <span className="text-sm font-black leading-tight sm:text-base">{option}</span>
+                      <span className="text-xl font-black leading-tight sm:text-2xl">{option}</span>
                     </div>
                   );
                 })}
               </div>
 
               <p className="mt-4 text-center text-xs font-semibold text-[var(--muted)]">
-                Answers unlock on the phones until the timer runs out.
+                Students read the answers here and tap them on the phones until the timer runs out.
               </p>
             </motion.section>
           )}
@@ -856,34 +906,68 @@ export default function HostPage() {
               transition={{ duration: 0.2 }}
               className="mt-6 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
-              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">Game over ðŸŽ‰</h1>
-              <ol className="mt-5 space-y-2">
-                {sortLeaderboard(
-                  Object.entries(scores).map(([playerId, entry]) => ({
-                    playerId,
-                    name: entry.name,
-                    total: entry.total,
-                    streak: entry.streak,
-                    gained: 0,
-                    correct: false,
-                  }))
-                )
-                  .slice(0, 10)
-                  .map((row, position) => (
+              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">Game over 🎉</h1>
+
+              <div className="mx-auto mt-6 grid max-w-md grid-cols-3 items-end gap-2 sm:gap-3">
+                {[
+                  { place: 3, row: finalRows[2] },
+                  { place: 2, row: finalRows[1] },
+                  { place: 1, row: finalRows[0] },
+                ].map((slot, index) => {
+                  const revealed = podiumStep >= index + 1;
+                  const rankHeight = slot.place === 1 ? 'h-40 sm:h-48' : slot.place === 2 ? 'h-32 sm:h-36' : 'h-24 sm:h-28';
+                  return (
+                    <motion.div
+                      key={slot.place}
+                      initial={{ opacity: 0, y: 24, scale: 0.9 }}
+                      animate={revealed ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0.35, y: 24, scale: 0.9 }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                      className={`flex flex-col items-center justify-end gap-1 rounded-3xl border-4 px-2 py-3 sm:py-4 ${
+                        slot.place === 1
+                          ? 'border-[var(--accent)] bg-[var(--surface-2)]'
+                          : 'border-[var(--line)] bg-[var(--surface-2)]'
+                      } ${revealed ? '' : 'opacity-40 grayscale'} ${rankHeight}`}
+                      aria-hidden={!revealed}
+                    >
+                      <span
+                        className={`text-3xl font-black sm:text-4xl ${
+                          slot.place === 1 ? 'text-[var(--accent)]' : 'text-[var(--ink)]'
+                        }`}
+                      >
+                        {slot.place}
+                      </span>
+                      <span className="max-w-full truncate text-center text-sm font-black text-[var(--ink)] sm:text-base">
+                        {slot.row?.name ?? '—'}
+                      </span>
+                      {slot.row ? (
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                          {slot.row.total.toLocaleString('pt-BR')} pts
+                        </span>
+                      ) : null}
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {finalRows.length > 3 ? (
+                <ol className="mx-auto mt-6 max-w-md space-y-2">
+                  {finalRows.slice(3, 10).map((row, index) => (
                     <li
                       key={row.playerId}
                       className="flex items-center gap-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-2.5"
                     >
-                      <span className="w-7 text-center text-sm font-black text-[var(--accent)]">{position + 1}</span>
+                      <span className="w-7 text-center text-sm font-black text-[var(--accent)]">{index + 4}</span>
                       <span className="min-w-0 flex-1 truncate text-base font-black text-[var(--ink)]">{row.name}</span>
                       <span className="text-base font-black text-[var(--ink)]">{row.total.toLocaleString('pt-BR')}</span>
                     </li>
                   ))}
-              </ol>
+                </ol>
+              ) : null}
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => {
+                    enterFullscreen();
                     setPhase('lobby');
                     setReveal({ seq: -1, correctIndex: -1, counts: [0, 0, 0, 0], explanation: '', leaderboard: [] });
                   }}
