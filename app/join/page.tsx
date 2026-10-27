@@ -252,7 +252,11 @@ export default function JoinPage() {
     <main className="game-shell theme-halloween relative flex min-h-dvh w-full flex-col items-center px-4 py-6">
       <HalloweenBackdrop dimmed={phase !== 'entry'} />
 
-      <div className="relative z-10 flex w-full max-w-md flex-1 flex-col">
+      <div
+        className={`relative z-10 flex w-full flex-1 flex-col ${
+          phase === 'question' || phase === 'answered' || phase === 'reveal' ? 'max-w-5xl' : 'max-w-md'
+        }`}
+      >
           {phase === 'entry' && (
             <motion.section
               key="entry"
@@ -354,8 +358,13 @@ export default function JoinPage() {
                 </div>
               </div>
 
-              {/* Only the answer tiles show here: the question lives on the projector. */}
-              <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
+              {/* Only the answer tiles show here: the question lives on the projector.
+                  The grid fills the screen (timer included) and widens the tiles so they
+                  stay as close to square as the viewport allows — never scrolls. */}
+              <div
+                className="mt-3 grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
+                style={{ maxWidth: 'min(56rem, calc((100dvh - 12rem) * 2))' }}
+              >
                 {question.options.map((_, index) => {
                   const style = ANSWER_BUTTONS[index];
                   const locked = chosenSeqRef.current === seqRef.current;
@@ -383,7 +392,7 @@ export default function JoinPage() {
               </div>
 
               {phase === 'answered' ? (
-                <p className="mt-4 text-center text-sm font-black uppercase tracking-wide text-emerald-400">
+                <p className="mb-1 mt-3 text-center text-xs font-black uppercase tracking-wide text-emerald-400">
                   Locked in! Waiting for the reveal…
                 </p>
               ) : null}

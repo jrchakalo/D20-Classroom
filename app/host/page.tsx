@@ -475,7 +475,7 @@ export default function HostPage() {
     if (phase !== 'over') return;
     setPodiumStep(0);
     const timers = [1, 2, 3].map((step, order) =>
-      window.setTimeout(() => setPodiumStep((current) => Math.max(current, step)), 1000 + order * 1400),
+      window.setTimeout(() => setPodiumStep((current) => Math.max(current, step)), 1400 + order * 2200),
     );
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [phase]);
