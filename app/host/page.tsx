@@ -173,6 +173,11 @@ export default function HostPage() {
   const lastHostMessageRef = useRef<HostToPlayerMessage | null>(null);
   const playerCountRef = useRef(0);
   const endQuestionRef = useRef<((seqIndex: number) => void) | null>(null);
+  const nextQuestionRef = useRef<(() => void) | null>(null);
+  /* Pending auto-advance timer (reveal screen), separate from the question timer. */
+  const advanceRef = useRef<number | null>(null);
+  const lastAdvanceAtRef = useRef(0);
+  const revealedIdsRef = useRef<Set<string>>(new Set());
   const [podiumStep, setPodiumStep] = useState(0);
   phaseRef.current = phase;
   playerCountRef.current = players.length;
@@ -229,7 +234,11 @@ export default function HostPage() {
         setReplies(repliesRef.current);
 
         // Everyone has voted: jump to the reveal right away, like Kahoot.
+        // Guarded so a duplicated reply event (double channel echo) or a
+        // late straggler reply can't fire the reveal twice for the same question.
         if (
+          phaseRef.current === 'question' &&
+          answer.seq === seqRef.current &&
           playerCountRef.current > 0 &&
           repliesRef.current.length >= playerCountRef.current
         ) {
@@ -300,6 +309,11 @@ export default function HostPage() {
       const current = questionRef.current;
       if (!current) return;
 
+      // Fire at most once per question, even if a duplicate channel event or a
+      // dev StrictMode double-mount reaches it in the same tick.
+      if (revealedIdsRef.current.has(current.id)) return;
+      revealedIdsRef.current.add(current.id);
+
       const counts = [0, 0, 0, 0];
       const rows: LiveScoreRow[] = [];
       const nextScores = { ...scoresRef.current };
@@ -354,6 +368,9 @@ export default function HostPage() {
         counts,
         leaderboard,
       } satisfies HostToPlayerMessage);
+
+      // The 7 s auto-advance timer itself lives in the reveal effect, so the
+      // countdown and the jump share one single source of truth.
     },
     [broadcast, difficulty, players, secondsPerQuestion]
   );
@@ -388,6 +405,10 @@ export default function HostPage() {
       } satisfies HostToPlayerMessage);
 
       if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      if (advanceRef.current) {
+        window.clearTimeout(advanceRef.current);
+        advanceRef.current = null;
+      }
       timeoutRef.current = window.setTimeout(() => {
         endQuestion(seqIndex);
       }, secondsPerQuestion * 1000);
@@ -401,6 +422,7 @@ export default function HostPage() {
     setRun(nextRun);
     scoresRef.current = {};
     setScores({});
+    revealedIdsRef.current = new Set();
     askQuestion(0);
   }, [askQuestion, difficulty, questionCount]);
 
@@ -429,6 +451,15 @@ export default function HostPage() {
   }, [broadcast]);
 
   const nextQuestion = useCallback(() => {
+    // Debounce: the firing timer and a same-instant manual click must not
+    // advance twice (and an accidental double-click gets absorbed too).
+    const now = Date.now();
+    if (now - lastAdvanceAtRef.current < 600) return;
+    lastAdvanceAtRef.current = now;
+    if (advanceRef.current) {
+      window.clearTimeout(advanceRef.current);
+      advanceRef.current = null;
+    }
     const next = seqRef.current + 1;
     if (next >= runRef.current.length) {
       finishGame();
@@ -436,6 +467,51 @@ export default function HostPage() {
     }
     askQuestion(next);
   }, [askQuestion, finishGame]);
+  nextQuestionRef.current = nextQuestion;
+
+  /* Countdown for the auto-advance shown on the reveal screen. */
+  const [revealCountdown, setRevealCountdown] = useState(7);
+
+  /* Auto-advance: after the reveal the game moves on by itself. The host can
+     switch it off and drive Next question manually instead. ON by default. */
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const autoAdvanceRef = useRef(true);
+  const toggleAutoAdvance = useCallback((value: boolean) => {
+    setAutoAdvance(value);
+    autoAdvanceRef.current = value;
+    if (!value && advanceRef.current) {
+      // Turning it off mid-reveal stops the pending jump.
+      window.clearTimeout(advanceRef.current);
+      advanceRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'reveal') return;
+    if (autoAdvanceRef.current) {
+      // Single source of truth for the 7 s jump (or ending the game).
+      if (advanceRef.current) window.clearTimeout(advanceRef.current);
+      advanceRef.current = window.setTimeout(() => {
+        advanceRef.current = null;
+        nextQuestionRef.current?.();
+      }, 7000);
+    }
+    setRevealCountdown(7);
+    const interval = window.setInterval(() => {
+      setRevealCountdown(autoAdvanceRef.current ? (current) => Math.max(current - 1, 0) : 7);
+    }, 1000);
+    return () => {
+      window.clearInterval(interval);
+      // Also kills the pending jump the moment the phase changes again
+      // (manual Next, toggle off, finish, …), avoiding stale double jumps.
+      if (advanceRef.current) {
+        window.clearTimeout(advanceRef.current);
+        advanceRef.current = null;
+      }
+    };
+  }, [phase, autoAdvance]);
+
+  /* Ticker for the projected countdown bar. */
 
   /* Ticker for the projected countdown bar. */
   useEffect(() => {
@@ -630,6 +706,29 @@ export default function HostPage() {
                     })}
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
+                <div className="text-left">
+                  <p className="text-sm font-black text-[var(--ink)]">Auto-advance next question</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-[var(--muted)]">
+                    On: the reveal screen jumps to the next question on its own after 7 s. Off: the host drives Next
+                    question manually.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoAdvance}
+                  onClick={() => toggleAutoAdvance(!autoAdvance)}
+                  className={`ml-4 flex min-w-20 flex-none items-center justify-center rounded-full px-4 py-2 text-xs font-black uppercase tracking-wide transition-colors ${
+                    autoAdvance
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
+                  }`}
+                >
+                  {autoAdvance ? 'On' : 'Off'}
+                </button>
               </div>
 
               <button
@@ -862,6 +961,29 @@ export default function HostPage() {
                     ))}
                   </ol>
                 </div>
+              </div>
+
+              <p className="mt-4 text-center text-xs font-black uppercase tracking-wide text-[var(--muted)]">
+                {autoAdvance
+                  ? revealCountdown > 0
+                    ? `Next question automatically in ${revealCountdown} s`
+                    : 'Advancing…'
+                  : 'Auto-advance is off — press Next question when the room is ready.'}
+              </p>
+              <div className="mt-2 flex justify-center">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoAdvance}
+                  onClick={() => toggleAutoAdvance(!autoAdvance)}
+                  className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-wide transition-colors ${
+                    autoAdvance
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
+                  }`}
+                >
+                  Auto-advance: {autoAdvance ? 'On' : 'Off'}
+                </button>
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">
