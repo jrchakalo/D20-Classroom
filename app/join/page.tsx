@@ -355,8 +355,8 @@ export default function JoinPage() {
               </div>
 
               {/* Only the answer tiles show here: the question lives on the projector. */}
-              <div className="mt-4 grid flex-1 grid-cols-2 content-center gap-3">
-                {question.options.map((option, index) => {
+              <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
+                {question.options.map((_, index) => {
                   const style = ANSWER_BUTTONS[index];
                   const locked = chosenSeqRef.current === seqRef.current;
                   const chosen = chosenIndex === index;
@@ -366,18 +366,17 @@ export default function JoinPage() {
                     <motion.button
                       key={index}
                       type="button"
-                      whileTap={disabled ? undefined : { scale: 0.95 }}
+                      whileTap={disabled ? undefined : { scale: 0.97 }}
                       disabled={disabled}
                       onClick={() => answer(index)}
-                      className={`flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl px-2 py-3 text-center text-base font-black text-white shadow-xl transition-opacity sm:text-lg ${
+                      className={`flex h-full min-h-0 w-full items-center justify-center rounded-3xl text-white shadow-xl transition-opacity ${
                         locked && !chosen ? 'opacity-40' : ''
                       } ${chosen ? 'ring-4 ring-white/80' : ''}`}
                       style={{ backgroundColor: style.bg }}
                     >
-                      <span className="text-4xl" aria-hidden="true">
+                      <span className="text-6xl sm:text-7xl" aria-hidden="true">
                         {style.shape}
                       </span>
-                      <span className="leading-tight">{option}</span>
                     </motion.button>
                   );
                 })}

@@ -926,7 +926,7 @@ export default function HostPage() {
                         slot.place === 1
                           ? 'border-[var(--accent)] bg-[var(--surface-2)]'
                           : 'border-[var(--line)] bg-[var(--surface-2)]'
-                      } ${revealed ? '' : 'opacity-40 grayscale'} ${rankHeight}`}
+                      } ${rankHeight}`}
                       aria-hidden={!revealed}
                     >
                       <span
@@ -936,13 +936,17 @@ export default function HostPage() {
                       >
                         {slot.place}
                       </span>
-                      <span className="max-w-full truncate text-center text-sm font-black text-[var(--ink)] sm:text-base">
-                        {slot.row?.name ?? '—'}
-                      </span>
-                      {slot.row ? (
-                        <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                          {slot.row.total.toLocaleString('pt-BR')} pts
-                        </span>
+                      {revealed ? (
+                        <>
+                          <span className="max-w-full truncate text-center text-sm font-black text-[var(--ink)] sm:text-base">
+                            {slot.row?.name ?? '—'}
+                          </span>
+                          {slot.row ? (
+                            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                              {slot.row.total.toLocaleString('pt-BR')} pts
+                            </span>
+                          ) : null}
+                        </>
                       ) : null}
                     </motion.div>
                   );
