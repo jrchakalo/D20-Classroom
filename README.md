@@ -30,6 +30,24 @@ No modo Halloween, o professor pode escolher entre o **D20 Roll** e a **Competit
 - **Hard:** Hard Starter → Hard Core → Hard Challenge → Hard Expert → Hard Final → Hard Championship.
 - **Progressive:** 2 ou 3 rodadas em cada dificuldade, começando no Easy e terminando no Hard. Continua com 6 ou 9 fases.
 
+### Halloween Live (modo Kahoot)
+No modo Halloween, além de D20 e Competition, o botão **Halloween Live** abre uma sala multiplayer no estilo Kahoot:
+
+- **/host** (tela do professor): cria uma sala com código de 5 caracteres, mostra um **QR code** para os alunos, projeta a pergunta em tela cheia com timer e revela as respostas com barra por cor e placar ao vivo.
+- **/join** (tela do aluno): entrada com código ou QR; responde com 4 botões grandes coloridos (▲ vermelho, ◆ azul, ● amarelo, ■ verde) e vê o feedback em cada revelação.
+- **Gama de perguntas novo:** 180 múltipla escolha (60 por dificuldade, 20 por tier), mesmo estilo do baralho Halloween; um único deck por rodada.
+- **Pontuação estilo Kahoot:** acerto vale de 100 até 1.000 pontos conforme a velocidade da resposta.
+- **Enviro de Realtime:** os eventos trafegam por canais broadcast (sem database). O host é a autoridade: escolhe as perguntas, calcula a pontuação e emite cada evento de jogo.
+- Fase `lobby → question → reveal → leaderboard→/gameover`, com rejeição automática de respostas repetidas ou fora de fase.
+
+**Requer configuração:** o modo Live é o único que usa variáveis de ambiente — veja a seção abaixo. Fora de sala de aula com wi-fi compartilhado, o QR code funciona facilmente se os alunos abrirem a URL via rede local na mesma sub-rede do computador-host ou em uma URL pública hospedada.
+
+**Configuração do Halloween Live:**
+1. Crie um projeto gratuito em <https://supabase.com>.
+2. Copie a **Project URL** e a **anon public key** (Project Settings → API).
+3. Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` em `.env.local` (copy from `.env.example`).
+4. Reinicie o servidor (`npm run dev`) e entre no modo Live. Nenhuma tabela ou migration é necessária — só o Realtime precisa estar habilitado (padrão).
+
 O baralho de Halloween foi revisado para crianças e pré-adolescentes brasileiros: as perguntas de ano de lançamento de filmes/livros foram removidas, o contexto foi ajustado e foram incluídas referências ao folclore e à cultura do Brasil, como Saci, Curupira, Iara, Boitatá, Cuca, mula-sem-cabeça, boto e Dia do Saci.
 
 ## Funcionalidades
@@ -48,6 +66,7 @@ O baralho de Halloween foi revisado para crianças e pré-adolescentes brasileir
 ## Stack
 - Next.js 15 (App Router)
 - React 19 + TypeScript
+- Supabase Realtime (canais broadcast, modo Halloween Live)
 - Tailwind CSS 4
 - Motion + canvas-confetti
 
@@ -55,7 +74,8 @@ O baralho de Halloween foi revisado para crianças e pré-adolescentes brasileir
 - Node.js 18+
 
 ## Variáveis de ambiente
-Nenhuma variável de ambiente é estritamente necessária para rodar este projeto localmente, pois o banco de perguntas é gerenciado internamente (via array).
+- **Jogo local (D20 / Competition):** nenhuma variável é necessária — os baralhos ficam em `lib/classic-questions.ts` e `lib/halloween-questions.ts`.
+- **Halloween Live (sala Kahoot):** `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (copie de `.env.example`); instruções completas acima.
 
 ## Como rodar localmente
 1. Instale as dependências: `npm install` ou `yarn install`
