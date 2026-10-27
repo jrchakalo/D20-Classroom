@@ -362,7 +362,7 @@ export default function JoinPage() {
                   The grid fills the screen (timer included) and widens the tiles so they
                   stay as close to square as the viewport allows — never scrolls. */}
               <div
-                className="mt-3 grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
+                className="mx-auto mt-3 grid w-full min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
                 style={{ maxWidth: 'min(56rem, calc((100dvh - 12rem) * 2))' }}
               >
                 {question.options.map((_, index) => {
