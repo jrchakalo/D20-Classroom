@@ -17,6 +17,7 @@ import {
   Skull,
   Sparkles,
   Trophy,
+  Wifi,
 } from 'lucide-react';
 import CompetitionGame from '@/components/CompetitionGame';
 import CompetitionSetup from '@/components/CompetitionSetup';
@@ -658,6 +659,33 @@ export default function GamePage() {
                       })}
                     </div>
                   </motion.section>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence initial={false}>
+                {isHalloween && (
+                  <motion.a
+                    key="live-room"
+                    href="/host"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-4 border-dashed border-[var(--accent)] bg-[var(--surface)] p-4 sm:p-5"
+                  >
+                    <span className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                        <Wifi className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span>
+                        <span className="block text-lg font-black text-[var(--ink)]">Halloween Live</span>
+                        <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
+                          Kahoot-style room: students join with a code or QR and answer on their own phones.
+                        </span>
+                      </span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+                  </motion.a>
                 )}
               </AnimatePresence>
 

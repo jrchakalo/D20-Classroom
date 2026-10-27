@@ -1,0 +1,909 @@
+﻿'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { motion } from 'motion/react';
+import {
+  ArrowLeft,
+  Check,
+  Ghost,
+  Play,
+  RotateCcw,
+  Timer,
+  UserPlus,
+  Wifi,
+  X,
+} from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import HalloweenBackdrop from '@/components/HalloweenBackdrop';
+import { DIFFICULTIES } from '@/lib/game';
+import {
+  channelNameFor,
+  type HostToPlayerMessage,
+  type LiveGameConfig,
+  type LiveScoreRow,
+  MAX_PLAYERS,
+} from '@/lib/live/protocol';
+import { getSupabaseClient } from '@/lib/live/supabase';
+import {
+  ANSWER_BUTTONS,
+  buildQuestionRun,
+  formatPoints,
+  getLiveDeck,
+  prepareQuestion,
+  randomId,
+  randomRoomCode,
+  sanitizeRoomCode,
+  scoreForAnswer,
+  sortLeaderboard,
+} from '@/lib/live/room';
+import type { DifficultyId } from '@/lib/types';
+
+type Phase = 'setup' | 'lobby' | 'question' | 'reveal' | 'over';
+
+type HostPlayer = {
+  id: string;
+  name: string;
+};
+
+type Reply = {
+  playerId: string;
+  name: string;
+  optionIndex: number;
+  elapsedMs: number;
+};
+
+type ScoreEntry = {
+  name: string;
+  total: number;
+  streak: number;
+};
+
+const PLAYER_STORAGE_KEY = 'd20-classroom-live-player';
+const HOST_SESSION_KEY = 'd20-classroom-live-host';
+
+type SavedSession = {
+  code: string;
+  config: LiveGameConfig;
+};
+
+function readSavedSession(): SavedSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(HOST_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedSession>;
+    if (typeof parsed.code === 'string' && parsed.config && typeof parsed.config === 'object') {
+      const { code } = parsed;
+      const { difficulty, questionCount, secondsPerQuestion } = parsed.config;
+      if (code && difficulty) {
+        return {
+          code,
+          config: {
+            difficulty,
+            questionCount: questionCount ?? 12,
+            secondsPerQuestion: secondsPerQuestion ?? 20,
+          },
+        };
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function saveSavedSession(session: SavedSession) {
+  try {
+    window.localStorage.setItem(HOST_SESSION_KEY, JSON.stringify(session));
+  } catch {
+    // Storage disabled: the host simply cannot rejoin after a refresh.
+  }
+}
+
+function clearSavedSession() {
+  try {
+    window.localStorage.removeItem(HOST_SESSION_KEY);
+  } catch {
+    // Storage disabled: nothing to clear.
+  }
+}
+
+const ROUND_LENGTHS: { value: 8 | 12 | 16; label: string }[] = [
+  { value: 8, label: '8 questions' },
+  { value: 12, label: '12 questions' },
+  { value: 16, label: '16 questions' },
+];
+
+const ROUND_SECONDS: { value: 15 | 20 | 30; label: string }[] = [
+  { value: 15, label: '15 s' },
+  { value: 20, label: '20 s' },
+  { value: 30, label: '30 s' },
+];
+
+export default function HostPage() {
+  const [mounted, setMounted] = useState(false);
+  const [realtimeReady, setRealtimeReady] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setRealtimeReady(
+      Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    );
+  }, []);
+
+  const [phase, setPhase] = useState<Phase>('setup');
+  const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
+  const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(12);
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState<15 | 20 | 30>(20);
+
+  const [code, setCode] = useState('');
+  const [joinUrl, setJoinUrl] = useState('');
+
+  const [players, setPlayers] = useState<HostPlayer[]>([]);
+  const [replies, setReplies] = useState<Reply[]>([]);
+  const [scores, setScores] = useState<Record<string, ScoreEntry>>({});
+  const [run, setRun] = useState<ReturnType<typeof buildQuestionRun>>([]);
+  const [seq, setSeq] = useState(0);
+  const [question, setQuestion] = useState<ReturnType<typeof prepareQuestion> | null>(null);
+  const [reveal, setReveal] = useState<{
+    seq: number;
+    correctIndex: number;
+    counts: number[];
+    explanation: string;
+    leaderboard: LiveScoreRow[];
+  } | null>(null);
+  const [msLeft, setMsLeft] = useState(0);
+  const [startedAt, setStartedAt] = useState(0);
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'live'>('idle');
+  const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
+
+  useEffect(() => {
+    setSavedSession(readSavedSession());
+  }, []);
+
+  const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getSupabaseClient>>['channel']> | null>(null);
+  const runRef = useRef<ReturnType<typeof buildQuestionRun>>([]);
+  const seqRef = useRef(0);
+  const scoresRef = useRef<Record<string, ScoreEntry>>({});
+  const repliesRef = useRef<Reply[]>([]);
+  const questionRef = useRef<ReturnType<typeof prepareQuestion> | null>(null);
+  const startedAtRef = useRef(0);
+  const timeoutRef = useRef<number | null>(null);
+  const phaseRef = useRef<Phase>('setup');
+  const lastHostMessageRef = useRef<HostToPlayerMessage | null>(null);
+  phaseRef.current = phase;
+
+  const broadcast = useCallback((payload: HostToPlayerMessage) => {
+    lastHostMessageRef.current = payload;
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'host',
+      payload,
+    });
+  }, []);
+
+  /* ------------------------------------------------------------------ */
+  /* Channel lifecycle                                                   */
+  /* ------------------------------------------------------------------ */
+
+  const openRoom = useCallback(async (preferredCode?: string) => {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    setStatus('connecting');
+    const sanitizedPreferred =
+      preferredCode && sanitizeRoomCode(preferredCode) ? preferredCode : null;
+    const roomCode = sanitizedPreferred ?? randomRoomCode();
+    const channel = client.channel(channelNameFor(roomCode), {
+      config: { presence: { key: randomId('host') } },
+    });
+
+    channel
+      .on('broadcast', { event: 'player' }, ({ payload }) => {
+        const message = payload as { kind?: string };
+        if (message?.kind !== 'answer') return;
+        const answer = payload as unknown as {
+          kind: 'answer';
+          playerId: string;
+          name: string;
+          seq: number;
+          optionIndex: number;
+        };
+
+        // Only accept answers for the live question, once per player.
+        if (answer.seq !== seqRef.current) return;
+        if (repliesRef.current.some((r) => r.playerId === answer.playerId)) return;
+
+        const elapsedMs = Math.max(Date.now() - startedAtRef.current, 0);
+        const entry: Reply = {
+          playerId: answer.playerId,
+          name: answer.name.slice(0, 16),
+          optionIndex: answer.optionIndex,
+          elapsedMs,
+        };
+        repliesRef.current = [...repliesRef.current, entry];
+        setReplies(repliesRef.current);
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState() as Record<string, { name?: string }[]>;
+        const next: HostPlayer[] = [];
+        for (const [id, metas] of Object.entries(state)) {
+          if (id.startsWith('host-')) continue;
+          const name = metas[0]?.name;
+          // The presence key IS the player id, so scores and answers line up.
+          if (name) next.push({ id, name: String(name).slice(0, 16) });
+        }
+        next.sort((a, b) => a.name.localeCompare(b.name));
+        setPlayers(next);
+      })
+      .on('presence', { event: 'join' }, () => {
+        // Late joiners: lobby snapshot, or the current game screen they missed.
+        const phaseNow = phaseRef.current;
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'host',
+          payload:
+            phaseNow === 'lobby' || !lastHostMessageRef.current
+              ? {
+                  kind: 'lobby',
+                  code: roomCode,
+                  config: { difficulty, questionCount, secondsPerQuestion },
+                }
+              : lastHostMessageRef.current,
+        });
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          channelRef.current = channel;
+          setCode(roomCode);
+          setStatus('live');
+          setPhase('lobby');
+          const url = `${window.location.origin}/join?code=${roomCode}`;
+          setJoinUrl(url);
+          saveSavedSession({
+            code: roomCode,
+            config: { difficulty, questionCount, secondsPerQuestion },
+          });
+          await channel.track({ name: 'HOST' });
+        }
+      });
+  }, [broadcast, difficulty, questionCount, secondsPerQuestion]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      const channel = channelRef.current;
+      const client = getSupabaseClient();
+      if (channel && client) void client.removeChannel(channel);
+    };
+  }, []);
+
+  /* ------------------------------------------------------------------ */
+  /* Game flow                                                           */
+  /* ------------------------------------------------------------------ */
+
+  const endQuestion = useCallback(
+    (seqIndex: number) => {
+      const current = questionRef.current;
+      if (!current) return;
+
+      const counts = [0, 0, 0, 0];
+      const rows: LiveScoreRow[] = [];
+      const nextScores = { ...scoresRef.current };
+
+      for (const reply of repliesRef.current) {
+        counts[reply.optionIndex] = (counts[reply.optionIndex] ?? 0) + 1;
+      }
+
+      const playerNames = new Map(players.map((p) => [p.id, p.name]));
+      for (const reply of repliesRef.current) {
+        playerNames.set(reply.playerId, reply.name);
+      }
+
+      for (const [playerId, name] of playerNames) {
+        const reply = repliesRef.current.find((r) => r.playerId === playerId);
+        const previous = nextScores[playerId] ?? { name, total: 0, streak: 0 };
+        const correct = Boolean(reply && reply.optionIndex === current.correctIndex);
+        const gained = correct ? scoreForAnswer(reply!.elapsedMs, secondsPerQuestion * 1000) : 0;
+        const streak = correct ? previous.streak + 1 : 0;
+
+        nextScores[playerId] = { name, total: previous.total + gained, streak };
+        rows.push({ playerId, name, total: nextScores[playerId].total, streak, gained, correct });
+      }
+
+      for (const [playerId, entry] of Object.entries(nextScores)) {
+        if (!rows.some((r) => r.playerId === playerId)) {
+          rows.push({ playerId, name: entry.name, total: entry.total, streak: entry.streak, gained: 0, correct: false });
+        }
+      }
+
+      const leaderboard = sortLeaderboard(rows);
+      scoresRef.current = nextScores;
+      setScores(nextScores);
+      setReveal({
+        seq: seqIndex,
+        correctIndex: current.correctIndex,
+        counts,
+        explanation: getLiveDeck(difficulty).find((q) => q.id === current.id)?.explanation ?? '',
+        leaderboard,
+      });
+      setReplies([]);
+      repliesRef.current = [];
+      setPhase('reveal');
+      broadcast({
+        kind: 'reveal',
+        seq: seqIndex,
+        questionId: current.id,
+        text: current.text,
+        options: current.options,
+        correctIndex: current.correctIndex,
+        explanation: getLiveDeck(difficulty).find((q) => q.id === current.id)?.explanation ?? '',
+        counts,
+        leaderboard,
+      } satisfies HostToPlayerMessage);
+    },
+    [broadcast, difficulty, players, secondsPerQuestion]
+  );
+
+  const askQuestion = useCallback(
+    (seqIndex: number) => {
+      const current = runRef.current[seqIndex];
+      if (!current) return;
+
+      const prepared = prepareQuestion(current);
+      questionRef.current = prepared;
+      const now = Date.now();
+      startedAtRef.current = now;
+      repliesRef.current = [];
+      setQuestion(prepared);
+      setReplies([]);
+      setSeq(seqIndex);
+      seqRef.current = seqIndex;
+      setStartedAt(now);
+      setMsLeft(secondsPerQuestion * 1000);
+      setPhase('question');
+
+      broadcast({
+        kind: 'question',
+        seq: seqIndex,
+        questionId: prepared.id,
+        text: prepared.text,
+        options: prepared.options,
+        timeoutMs: secondsPerQuestion * 1000,
+        startedAt: now,
+      } satisfies HostToPlayerMessage);
+
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = window.setTimeout(() => {
+        endQuestion(seqIndex);
+      }, secondsPerQuestion * 1000);
+    },
+    [broadcast, endQuestion, secondsPerQuestion]
+  );
+
+  const startGame = useCallback(() => {
+    const nextRun = buildQuestionRun(difficulty, questionCount);
+    runRef.current = nextRun;
+    setRun(nextRun);
+    scoresRef.current = {};
+    setScores({});
+    askQuestion(0);
+  }, [askQuestion, difficulty, questionCount]);
+
+  const finishGame = useCallback(() => {
+    const rows: LiveScoreRow[] = sortLeaderboard(
+      Object.entries(scoresRef.current).map(([playerId, entry]) => ({
+        playerId,
+        name: entry.name,
+        total: entry.total,
+        streak: entry.streak,
+        gained: 0,
+        correct: false,
+      }))
+    );
+    setReveal(null);
+    setPhase('over');
+    broadcast({ kind: 'gameover', leaderboard: rows });
+  }, [broadcast]);
+
+  const nextQuestion = useCallback(() => {
+    const next = seqRef.current + 1;
+    if (next >= runRef.current.length) {
+      finishGame();
+      return;
+    }
+    askQuestion(next);
+  }, [askQuestion, finishGame]);
+
+  /* Ticker for the projected countdown bar. */
+  useEffect(() => {
+    if (phase !== 'question') return;
+    const tick = window.setInterval(() => {
+      setMsLeft(Math.max(startedAtRef.current + secondsPerQuestion * 1000 - Date.now(), 0));
+    }, 200);
+    return () => window.clearInterval(tick);
+  }, [phase, secondsPerQuestion, startedAt]);
+
+  useEffect(() => {
+    if (phase !== 'lobby') return;
+    broadcast({
+      kind: 'lobby',
+      code,
+      config: { difficulty, questionCount, secondsPerQuestion },
+    } satisfies HostToPlayerMessage);
+  }, [phase, players, broadcast, code, difficulty, questionCount, secondsPerQuestion]);
+
+  /* ------------------------------------------------------------------ */
+  /* Render                                                              */
+  /* ------------------------------------------------------------------ */
+
+  if (!mounted) {
+    return (
+      <main className="game-shell theme-halloween relative flex min-h-dvh items-center justify-center">
+        <HalloweenBackdrop dimmed />
+        <span className="relative z-10 h-10 w-10 animate-pulse rounded-full bg-[var(--surface-2)]" />
+      </main>
+    );
+  }
+
+  if (!realtimeReady) {
+    return (
+      <main className="theme-halloween game-shell relative flex min-h-dvh items-center justify-center px-4">
+        <HalloweenBackdrop dimmed />
+        <div className="relative z-10 max-w-md rounded-2xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
+          <Wifi className="mx-auto h-8 w-8 text-[var(--muted)]" aria-hidden="true" />
+          <h1 className="mt-3 text-xl font-black text-[var(--ink)]">Realtime not configured</h1>
+          <p className="mt-2 text-sm font-medium text-[var(--muted)]">
+            Add <code className="rounded bg-[var(--surface-2)] px-1">NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
+            <code className="rounded bg-[var(--surface-2)] px-1">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to your{' '}
+            <code className="rounded bg-[var(--surface-2)] px-1">.env.local</code>, then restart the dev server.
+          </p>
+          <a
+            href="/"
+            className="mt-5 inline-block rounded-xl bg-[var(--cta-bg)] px-4 py-2 text-sm font-black text-[var(--cta-text)]"
+          >
+            Back to menu
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main
+      className="game-shell theme-halloween relative flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:px-8"
+    >
+      <HalloweenBackdrop dimmed={phase !== 'lobby'} />
+
+      <div className="relative z-10 w-full max-w-4xl">
+        <div className="flex items-center justify-between gap-3">
+          <a
+            href="/"
+            className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            Menu
+          </a>
+          <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+            Halloween Live Â· Host
+          </span>
+        </div>
+
+        {phase === 'setup' && (
+            <motion.section
+              key="setup"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-8 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
+            >
+              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">
+                Create a live room
+              </h1>
+              <p className="mt-2 text-sm font-semibold text-[var(--muted)] sm:text-base">
+                Students join with the room code or the QR code, then answer on their own phones while the question
+                stays on this screen.
+              </p>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-3">
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Deck</h2>
+                  <div className="mt-2 grid gap-2">
+                    {DIFFICULTIES.map((item) => {
+                      const selected = difficulty === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setDifficulty(item.id)}
+                          className={
+                            selected
+                              ? 'flex items-center justify-between rounded-xl border-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-left'
+                              : 'flex items-center justify-between rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left hover:border-[var(--line)]'
+                          }
+                        >
+                          <span className="text-sm font-black text-[var(--ink)]">{item.label}</span>
+                          <span className="text-[10px] font-bold uppercase text-[var(--accent)]">{item.audience}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[11px] font-medium text-[var(--muted)]">
+                    {getLiveDeck(difficulty).length} multiple-choice questions ready.
+                  </p>
+                </div>
+
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Rounds</h2>
+                  <div className="mt-2 grid gap-2">
+                    {ROUND_LENGTHS.map((item) => {
+                      const selected = questionCount === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setQuestionCount(item.value)}
+                          className={
+                            selected
+                              ? 'rounded-xl border-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-left text-sm font-black text-[var(--ink)]'
+                              : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left text-sm font-black text-[var(--ink)] hover:border-[var(--line)]'
+                          }
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Time per question</h2>
+                  <div className="mt-2 grid gap-2">
+                    {ROUND_SECONDS.map((item) => {
+                      const selected = secondsPerQuestion === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setSecondsPerQuestion(item.value)}
+                          className={
+                            selected
+                              ? 'flex items-center gap-2 rounded-xl border-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-left text-sm font-black text-[var(--ink)]'
+                              : 'flex items-center gap-2 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left text-sm font-black text-[var(--ink)] hover:border-[var(--line)]'
+                          }
+                        >
+                          <Timer className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={status === 'connecting'}
+                onClick={() => void openRoom()}
+                className="mt-7 w-full rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-60 sm:w-auto sm:min-w-64"
+              >
+                {status === 'connecting' ? 'Opening roomâ€¦' : 'Open room'}
+              </button>
+
+              {savedSession && savedSession.code !== code ? (
+                <button
+                  type="button"
+                  disabled={status === 'connecting'}
+                  onClick={() => {
+                    setDifficulty(savedSession.config.difficulty);
+                    setQuestionCount(savedSession.config.questionCount);
+                    setSecondsPerQuestion(savedSession.config.secondsPerQuestion);
+                    void openRoom(savedSession.code);
+                  }}
+                  className="mt-3 block w-full rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--muted)] disabled:opacity-60 sm:w-auto sm:min-w-64"
+                >
+                  Rejoin room {savedSession.code} (after refresh)
+                </button>
+              ) : null}
+            </motion.section>
+          )}
+
+          {phase === 'lobby' && (
+            <motion.section
+              key="lobby"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-6"
+            >
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
+                  <h1 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Room code</h1>
+                  <p className="hw-title mt-1 text-6xl font-black tracking-[0.14em] text-[var(--accent)] sm:text-7xl">
+                    {code}
+                  </p>
+                  <p className="mt-3 max-w-sm text-sm font-semibold text-[var(--muted)]">
+                    Students open{' '}
+                    <span className="rounded bg-[var(--surface-2)] px-1 font-mono">/join</span>, type the code, pick a
+                    nickname and wait for the first question.
+                  </p>
+
+                  <div className="mt-5 flex items-center gap-2 text-sm font-black text-[var(--ink)]">
+                    <UserPlus className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                    {players.length}
+                    <span className="text-[var(--muted)]">/ {MAX_PLAYERS} players in the room</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={players.length === 0}
+                    onClick={startGame}
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-50 sm:w-auto sm:min-w-56"
+                  >
+                    <Play className="h-5 w-5" aria-hidden="true" />
+                    Start ({questionCount} questions)
+                  </button>
+                </div>
+
+                <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Scan to join</h2>
+                  {joinUrl ? (
+                    <div className="mt-3 rounded-2xl bg-white p-3">
+                      <QRCodeSVG value={joinUrl} size={168} fgColor="#1c0b33" bgColor="#ffffff" />
+                    </div>
+                  ) : null}
+                  <p className="mt-3 break-all text-[11px] font-semibold text-[var(--muted)]">{joinUrl}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5">
+                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Lobby</h2>
+                {players.length === 0 ? (
+                  <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+                    Waiting for the first playerâ€¦ show the QR code to the class.
+                  </p>
+                ) : (
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {players.map((player) => (
+                      <li
+                        key={player.id}
+                        className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-sm font-black text-[var(--ink)]"
+                      >
+                        <Ghost className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                        {player.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </motion.section>
+          )}
+
+          {phase === 'question' && question && (
+            <motion.section
+              key={`question-${seq}`}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-6"
+            >
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                    Question {seq + 1} / {run.length}
+                  </span>
+                  <h1 className="mt-2 text-2xl font-black leading-snug text-[var(--ink)] sm:text-4xl">{question.text}</h1>
+                </div>
+
+                <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Time left</span>
+                  <p className="hw-title mt-1 text-5xl font-black text-[var(--accent)] sm:text-6xl">
+                    {Math.ceil(msLeft / 1000)}
+                  </p>
+                  <p className="mt-2 text-sm font-black text-[var(--ink)]">
+                    {replies.length}/{players.length || '?'} answered
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {question.options.map((option, index) => {
+                  const style = ANSWER_BUTTONS[index];
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 rounded-2xl p-4 text-white"
+                      style={{ backgroundColor: style.bg }}
+                    >
+                      <span className="text-2xl" aria-hidden="true">
+                        {style.shape}
+                      </span>
+                      <span className="text-sm font-black leading-tight sm:text-base">{option}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="mt-4 text-center text-xs font-semibold text-[var(--muted)]">
+                Answers unlock on the phones until the timer runs out.
+              </p>
+            </motion.section>
+          )}
+
+          {phase === 'reveal' && reveal && question && (
+            <motion.section
+              key={`reveal-${reveal.seq}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-6"
+            >
+              <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                  Question {reveal.seq + 1} / {run.length}
+                </span>
+                <h1 className="mt-1 text-xl font-black text-[var(--ink)] sm:text-2xl">{question.text}</h1>
+                {reveal.explanation ? (
+                  <p className="mt-2 text-sm font-semibold text-[var(--muted)] sm:text-base">{reveal.explanation}</p>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5">
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Answers</h2>
+                  <ul className="mt-3 space-y-2">
+                    {question.options.map((option, index) => {
+                      const style = ANSWER_BUTTONS[index];
+                      const total = reveal.counts[index] ?? 0;
+                      const max = Math.max(...reveal.counts, 1);
+                      const correct = index === reveal.correctIndex;
+                      return (
+                        <li key={index} className="flex items-center gap-3">
+                          <span
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-black text-white"
+                            style={{ backgroundColor: style.bg }}
+                            aria-hidden="true"
+                          >
+                            {style.shape}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate text-sm font-black text-[var(--ink)] sm:text-base">
+                                {option}
+                                {correct ? <Check className="ml-2 inline h-4 w-4 text-emerald-500" aria-hidden="true" /> : null}
+                              </span>
+                              <span className="text-xs font-black text-[var(--muted)]">{total}</span>
+                            </div>
+                            <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(total / max) * 100}%` }}
+                                transition={{ duration: 0.5, ease: 'easeOut' }}
+                                className="h-full rounded-full"
+                                style={{ backgroundColor: style.bg }}
+                              />
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5">
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Leaderboard</h2>
+                  <ol className="mt-3 space-y-1.5">
+                    {reveal.leaderboard.slice(0, 8).map((row, position) => (
+                      <li key={row.playerId} className="flex items-center gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2">
+                        <span className="w-6 text-center text-xs font-black text-[var(--accent)]">{position + 1}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-black text-[var(--ink)]">{row.name}</span>
+                        {row.gained > 0 ? (
+                          <span className="text-[10px] font-black uppercase text-emerald-500">{formatPoints(row.gained)}</span>
+                        ) : null}
+                        <span className="text-sm font-black text-[var(--ink)]">{row.total.toLocaleString('pt-BR')}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={nextQuestion}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] sm:flex-none sm:min-w-56"
+                >
+                  {seq + 1 >= run.length ? (
+                    <>
+                      <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                      Finish game
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-5 w-5" aria-hidden="true" />
+                      Next question
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+                    finishGame();
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-3 text-sm font-black uppercase tracking-wide text-[var(--muted)]"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  End game
+                </button>
+              </div>
+            </motion.section>
+          )}
+
+          {phase === 'over' && (
+            <motion.section
+              key="over"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mt-6 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
+            >
+              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">Game over ðŸŽ‰</h1>
+              <ol className="mt-5 space-y-2">
+                {sortLeaderboard(
+                  Object.entries(scores).map(([playerId, entry]) => ({
+                    playerId,
+                    name: entry.name,
+                    total: entry.total,
+                    streak: entry.streak,
+                    gained: 0,
+                    correct: false,
+                  }))
+                )
+                  .slice(0, 10)
+                  .map((row, position) => (
+                    <li
+                      key={row.playerId}
+                      className="flex items-center gap-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-2.5"
+                    >
+                      <span className="w-7 text-center text-sm font-black text-[var(--accent)]">{position + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-base font-black text-[var(--ink)]">{row.name}</span>
+                      <span className="text-base font-black text-[var(--ink)]">{row.total.toLocaleString('pt-BR')}</span>
+                    </li>
+                  ))}
+              </ol>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhase('lobby');
+                    setReveal({ seq: -1, correctIndex: -1, counts: [0, 0, 0, 0], explanation: '', leaderboard: [] });
+                  }}
+                  className="flex items-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  Play again (same room)
+                </button>
+                <a
+                  href="/"
+                  onClick={() => clearSavedSession()}
+                  className="flex items-center gap-2 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-3 text-sm font-black uppercase tracking-wide text-[var(--muted)]"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Close room
+                </a>
+              </div>
+            </motion.section>
+          )}
+      </div>
+    </main>
+  );
+}
